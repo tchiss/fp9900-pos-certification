@@ -1,0 +1,44 @@
+<resources>
+    <string name="app_name">FP9900 POS</string>
+    <string name="app_description">Application de certification DGI pour terminal FP9900</string>
+    
+    <!-- Error messages -->
+    <string name="error_printer_not_found">Imprimante non trouvée</string>
+    <string name="error_network_unavailable">Réseau indisponible</string>
+    <string name="error_api_timeout">Timeout API</string>
+    <string name="error_invalid_data">Données invalides</string>
+    
+    <!-- Success messages -->
+    <string name="success_invoice_certified">Facture certifiée avec succès</string>
+    <string name="success_printer_initialized">Imprimante initialisée</string>
+    <string name="success_sync_completed">Synchronisation terminée</string>
+    
+    <!-- UI strings -->
+    <string name="label_issuer_ifu">IFU Émetteur</string>
+    <string name="label_buyer_name">Nom du client</string>
+    <string name="label_buyer_ifu">IFU Client</string>
+    <string name="label_item_description">Description</string>
+    <string name="label_quantity">Quantité</string>
+    <string name="label_unit_price">Prix unitaire</string>
+    <string name="label_total">Total</string>
+    
+    <!-- Actions -->
+    <string name="action_certify">Certifier</string>
+    <string name="action_print">Imprimer</string>
+    <string name="action_sync">Synchroniser</string>
+    <string name="action_retry">Réessayer</string>
+    <string name="action_cancel">Annuler</string>
+    
+    <!-- Status -->
+    <string name="status_online">En ligne</string>
+    <string name="status_offline">Hors ligne</string>
+    <string name="status_certified">Certifiée</string>
+    <string name="status_pending">En attente</string>
+    <string name="status_rejected">Rejetée</string>
+    
+    <!-- Notifications -->
+    <string name="notification_sync_title">Synchronisation en cours</string>
+    <string name="notification_sync_message">Synchronisation des factures en attente...</string>
+    <string name="notification_error_title">Erreur de synchronisation</string>
+    <string name="notification_error_message">Impossible de synchroniser les factures</string>
+</resources>

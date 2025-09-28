@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary colors -->
+    <color name="colorPrimary">#2E7D32</color>
+    <color name="colorPrimaryDark">#1B5E20</color>
+    <color name="colorAccent">#4CAF50</color>
+    
+    <!-- Secondary colors -->
+    <color name="colorSecondary">#1976D2</color>
+    <color name="colorSecondaryDark">#0D47A1</color>
+    
+    <!-- Status colors -->
+    <color name="colorSuccess">#4CAF50</color>
+    <color name="colorWarning">#FF9800</color>
+    <color name="colorError">#F44336</color>
+    <color name="colorInfo">#2196F3</color>
+    
+    <!-- Neutral colors -->
+    <color name="colorWhite">#FFFFFF</color>
+    <color name="colorBlack">#000000</color>
+    <color name="colorGray">#757575</color>
+    <color name="colorLightGray">#F5F5F5</color>
+    <color name="colorDarkGray">#424242</color>
+    
+    <!-- Background colors -->
+    <color name="windowBackground">#FAFAFA</color>
+    <color name="surfaceBackground">#FFFFFF</color>
+    
+    <!-- Text colors -->
+    <color name="textPrimary">#212121</color>
+    <color name="textSecondary">#757575</color>
+    <color name="textDisabled">#BDBDBD</color>
+    
+    <!-- Border colors -->
+    <color name="borderColor">#E0E0E0</color>
+    <color name="borderColorDark">#BDBDBD</color>
+    
+    <!-- System colors -->
+    <color name="statusBarColor">#1B5E20</color>
+    <color name="navigationBarColor">#FFFFFF</color>
+    
+    <!-- Transparent colors -->
+    <color name="transparent">#00000000</color>
+    <color name="semiTransparent">#80000000</color>
+</resources>
