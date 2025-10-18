@@ -1,0 +1,153 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.dspread.pos_android_app'
+    compileSdk 34
+
+    signingConfigs {
+        release {
+            storeFile file('app.keystore')
+            storePassword 'dspread'
+            keyPassword 'dspread'
+            keyAlias 'gundam_wing'
+        }
+        debug {
+            storeFile file('app.keystore')
+            storePassword 'dspread'
+            keyPassword 'dspread'
+            keyAlias 'gundam_wing'
+        }
+//        config {
+//            keyAlias 'key0'
+//            keyPassword '123789'
+//            storeFile file('dspread.jks')
+//            storePassword '123789'
+//        }
+    }
+
+    defaultConfig {
+        applicationId "com.dspread.pos_android_app"
+        minSdk 24
+        targetSdk 34
+        versionCode 106
+        versionName "8.0.6"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Force BuildConfig generation
+        buildConfigField "boolean", "DEBUG", "true"
+
+        ndk {
+            // Set up supported SO library architecture
+            abiFilters 'armeabi-v7a' , 'arm64-v8a', 'x86_64' //'x86'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    buildFeatures {
+        dataBinding true
+        buildConfig true
+    }
+    //Important: Disable modern packaging formats (otherwise a generic APK will be generated)
+    packagingOptions {
+        doNotStrip '**/lib/*.so' // 保留所有SO文件
+    }
+}
+
+dependencies {
+    // Include AAR files but exclude Kotlin conflicts
+    implementation fileTree(dir: 'libs', include: ['*.aar', '*.jar'], exclude: [])
+    
+    // Force newer Kotlin versions to override old ones from coroutines and DSpread SDK
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.8.10'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.10'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.10'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.5.0'
+    implementation 'androidx.gridlayout:gridlayout:1.0.0'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+    implementation 'androidx.navigation:navigation-fragment:2.4.1'
+    implementation 'androidx.navigation:navigation-ui:2.4.1'
+//    implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.25'
+
+//    implementation 'com.dspread.print:dspread_print_sdk:1.4.9-beta'
+//    implementation 'com.dspread.library:dspread_pos_sdk:7.1.2'
+
+//    implementation project(':mvvmhabit')
+//    api files('libs/dspread_pos_sdk_7.2.8.jar')
+//    implementation 'androidx.lifecycle:lifecycle-extensions:2.0.0'
+    api rootProject.ext.dependencies["lifecycle-extensions"]
+    annotationProcessor rootProject.ext.dependencies["lifecycle-compiler"]
+    //rx管理View的生命周期
+    api(rootProject.ext.dependencies.rxlifecycle) {
+        exclude group: 'com.android.support'
+    }
+    api(rootProject.ext.dependencies["rxlifecycle-components"]) {
+        exclude group: 'com.android.support'
+    }
+    //rxbinding
+    api(rootProject.ext.dependencies.rxbinding) {
+        exclude group: 'com.android.support'
+    }
+    api(rootProject.ext.dependencies.bindingcollectionadapter) {
+        exclude group: 'com.android.support'
+    }
+    api(rootProject.ext.dependencies["bindingcollectionadapter-recyclerview"]) {
+        exclude group: 'com.android.support'
+    }
+    api(rootProject.ext.dependencies["bindingcollectionadapter-viewpager2"]) {
+        exclude group: 'com.android.support'
+    }
+    //rx权限请求
+    api(rootProject.ext.dependencies.rxpermissions) {
+        exclude group: 'com.android.support'
+    }
+
+    api rootProject.ext.dependencies.rxjava
+    api rootProject.ext.dependencies.rxandroid
+    //network
+    api rootProject.ext.dependencies.okhttp
+    api rootProject.ext.dependencies.retrofit
+    api rootProject.ext.dependencies["converter-gson"]
+    api rootProject.ext.dependencies["adapter-rxjava"]
+
+    implementation 'com.tencent.bugly:crashreport:4.1.9'
+    implementation 'com.tencent.bugly:nativecrashreport:3.9.2'
+    implementation 'com.alibaba:fastjson:1.2.83'
+
+    implementation("com.tencent.shiply:upgrade:2.2.0")
+    implementation("com.tencent.shiply:upgrade-ui:2.2.0") // Pop up UI related, if the business side customizes their own pop ups, they can not rely on this library
+    implementation 'com.github.midorikocak:currency-picker-android:1.2.1'
+
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+    implementation 'com.google.zxing:core:3.5.1'
+    implementation 'com.airbnb.android:lottie:6.1.0'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    
+    // Dependencies for DGI certification system
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+}
+
+// Force resolution strategy to avoid Kotlin conflicts from coroutines and DSpread SDK
+configurations.all {
+    resolutionStrategy {
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.10'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.10'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.10'
+    }
+}

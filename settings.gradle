@@ -1,0 +1,32 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        jcenter() { url 'https://jcenter.bintray.com/' }
+        gradlePluginPortal()
+
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        jcenter() { url 'https://jcenter.bintray.com/' }
+        maven { url 'https://jitpack.io' }
+
+        maven { setUrl("https://maven.aliyun.com/repository/public") }
+        maven { setUrl("https://maven.aliyun.com/repository/google") }
+        maven { url "https://tencent-tds-maven.pkg.coding.net/repository/shiply/repo" }
+        maven {
+            url 'https://gitlab.com/api/v4/projects/4128550/packages/maven'
+        }
+        flatDir {
+            dirs 'libs'
+        }
+    }
+}
+
+//include ':app', ':mvvmhabit'
+include ':pos_android_app'

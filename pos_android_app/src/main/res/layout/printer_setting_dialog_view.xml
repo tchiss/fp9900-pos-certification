@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/dialog_background"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/dialog_bluetooth"
+        android:layout_width="match_parent"
+        android:visibility="gone"
+        android:layout_height="50dp"
+        android:background="@color/white"
+        android:textSize="25dp"
+        android:gravity="center"
+        android:text="Bluetooth"
+        tools:ignore="HardcodedText,SpUsage" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:visibility="gone"
+        android:background="@color/gainsboro" />
+    <TextView
+        android:id="@+id/dialog_bluetooth_ble"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:visibility="gone"
+        android:background="@color/white"
+        android:textSize="25dp"
+        android:gravity="center"
+        android:text="Bluetooth_ble"
+        tools:ignore="HardcodedText,SpUsage" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:visibility="gone"
+        android:background="@color/gainsboro" />
+
+    <TextView
+        android:id="@+id/dialog_serial"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:visibility="gone"
+        android:gravity="center"
+        android:background="@color/white"
+        android:textSize="25dp"
+        android:text="Serial"
+        tools:ignore="HardcodedText,SpUsage" />
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:visibility="gone"
+        android:background="@color/gainsboro" />
+
+    <TextView
+        android:id="@+id/dialog_usb"
+        android:layout_width="match_parent"
+        android:background="@color/white"
+        android:visibility="gone"
+        android:layout_height="50dp"
+        android:gravity="center"
+        android:text="USB"
+        android:textSize="25dp"
+        tools:ignore="HardcodedText,SpUsage" />
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@color/graye3"
+    >
+
+    <TextView
+        android:id="@+id/tv_dialogTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:padding="5dp"
+        android:textSize="20dp"
+        tools:ignore="SpUsage"></TextView>
+
+</LinearLayout>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        />
+
+    <Button
+        android:id="@+id/btn_cancel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:gravity="center"
+        android:padding="@dimen/dp_5"
+        android:text="@string/cancel"
+        android:textColor="@color/black"
+        android:textSize="20dp"
+        tools:ignore="SpUsage,TextSizeCheck,VisualLintButtonSize" />
+</LinearLayout>

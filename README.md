@@ -1,483 +1,212 @@
-# FP9900 POS - DGI Certification Application
+# FP9900 POS Certification System
 
-A comprehensive React Native application for FP9900 POS terminal enabling invoice certification through DGI (Direction Générale des Impôts) APIs in Benin. This application provides offline capabilities, thermal printing, real-time synchronization, authentication, monitoring, and security features.
+A comprehensive Android Point of Sale (POS) application with DGI (Direction Générale des Impôts) invoice certification capabilities. This system enables merchants to create, fiscalize, and manage invoices while maintaining compliance with fiscal regulations.
 
-## 🎯 Features
+## 🚀 Features
 
 ### Core Functionality
-- **Invoice input** with optimized touch interface
-- **DGI certification** via backend API
-- **Offline mode** with automatic synchronization
-- **Thermal printing** on FP9900 terminal
-- **Robust error handling** with automatic retry
-- **Modern interface** adapted for POS terminals
+- **Invoice Creation**: Create invoices with customer and issuer information
+- **DGI Certification**: Three-step certification process (Create → Fiscalize → Verify)
+- **Offline Support**: Store invoices locally when offline and sync when connected
+- **Thermal Printing**: Print certified invoices using DSpread SDK
+- **Real-time Sync**: Automatic synchronization of pending invoices
 
-### Authentication & Security
-- **User Authentication**: Secure login system with token management
-- **Session Management**: Automatic token refresh and session validation
-- **SSL Pinning**: Certificate pinning for secure API communication
-- **Data Encryption**: Encrypt sensitive data at rest
-- **Audit Logging**: Comprehensive audit trail for compliance
+### Technical Features
+- **MVVM Architecture**: Clean separation of concerns with ViewModel pattern
+- **Data Binding**: Reactive UI with Android Data Binding
+- **Background Processing**: Non-blocking initialization and API calls
+- **Error Handling**: Comprehensive error management with specific DGI rejection codes
+- **Material Design 3**: Modern UI following Material Design guidelines
 
-### Monitoring & Analytics
-- **Performance Metrics**: API latency, success rates, error tracking
-- **Real-time Statistics**: Certification rates, print success rates, sync statistics
-- **Error Monitoring**: Detailed error logging and reporting
-- **Export Capabilities**: Export performance data and audit logs
+### API Integration
+- **DGI API Integration**: Complete integration with fiscal certification API
+- **Multi-step Certification**: Handles create, fiscalize, and verify operations
+- **Error Code Handling**: Specific handling for REJ001-REJ030 rejection codes
+- **Timeout Management**: Configurable timeouts for network operations
 
-### Configuration & Testing
-- **Dynamic Configuration**: Runtime configuration management
-- **Test Suite**: Comprehensive application testing framework
-- **Quick Tests**: Basic functionality validation
-- **Test Reports**: Detailed test results with export functionality
+## 🛠️ Technical Requirements
 
-### Background Services
-- **Sync Service**: Background synchronization of pending invoices
-- **Network State Receiver**: Automatic sync when network becomes available
-- **Headless Tasks**: JavaScript tasks running in background
+### Development Environment
+- **Java**: Version 17 (JDK 17)
+- **Gradle**: Version 8.0
+- **Android Gradle Plugin**: Version 8.1.4
+- **Android Studio**: Latest stable version recommended
 
-## 🏗️ Architecture
+### Target Platform
+- **Minimum SDK**: API 24 (Android 7.0)
+- **Target SDK**: API 34 (Android 14)
+- **Compile SDK**: API 34
 
-### Frontend (React Native)
-- **Components**: Touch user interface with authentication
-- **Services**: 
-  - API client with authentication and monitoring
-  - Printing service with hardware integration
-  - Offline storage with auto-sync
-  - Authentication service with token management
-  - Security service with SSL pinning and encryption
-  - Monitoring service with performance tracking
-  - Configuration service with runtime updates
-  - Test service with comprehensive validation
-- **Screens**: Login, Invoice, Statistics, Configuration, Tests
-- **Styles**: Design adapted for POS terminals
+### Dependencies
+- **OkHttp**: 3.10.0 (HTTP client)
+- **Retrofit**: 2.4.0 (REST client)
+- **Gson**: 2.8.6 (JSON serialization)
+- **MVVMHabit**: 4.0.0 (MVVM framework)
+- **Material Design**: 1.0.0 (UI components)
+- **Lifecycle**: 2.0.0 (Android Architecture Components)
 
-### Backend
-- **DGI API**: Communication with certification services
-- **Database**: Invoice and metadata storage
-- **Synchronization**: Queue management
-
-### FP9900 Terminal
-- **Native module**: Java bridge for printing
-- **FP9900 SDK**: Hardware integration (to be configured)
-- **Background Services**: 
-  - SyncService for background synchronization
-  - NetworkStateReceiver for network change detection
-  - SyncTaskService for headless JavaScript tasks
-- **Lifecycle Management**: Proper initialization and cleanup
-
-## 🚀 Installation
+## 📦 Installation & Setup
 
 ### Prerequisites
-
-- Node.js 16+
-- React Native CLI
-- Android Studio
-- FP9900 terminal with Android
-- FP9900 SDK (provided by manufacturer)
-
-### 1. Clone the project
-
+1. **Java 17**: Ensure JAVA_HOME is set to JDK 17
    ```bash
-git clone <repository-url>
-cd pos_certif_starter
+   export JAVA_HOME=/path/to/jdk-17
    ```
 
-### 2. Install dependencies
+2. **Android SDK**: Install Android SDK with API levels 24-34
 
+3. **Gradle**: The project uses Gradle Wrapper (version 8.0)
+
+### Build Instructions
+
+1. **Clone the repository**:
    ```bash
-# JavaScript dependencies
-yarn install
-```
+   git clone <repository-url>
+   cd fp9900-pos-certification
+   ```
 
-### 3. Android Configuration
-
-#### 3.1. FP9900 SDK Configuration
-
-1. Get FP9900 SDK from manufacturer
-2. Add JAR files to `android/app/libs/`
-3. Update `android/app/build.gradle`:
-
-```gradle
-dependencies {
-    // FP9900 SDK
-    implementation files('libs/fp9900-sdk.jar')
-    // Other dependencies...
-}
-```
-
-#### 3.2. Native Module Configuration
-
-The `PrinterModule.java` module (in `android/app/src/main/java/com/fp9900/printer/`) contains TODOs to be completed with actual SDK calls:
-
-     ```java
-// Replace TODOs with FP9900 SDK calls
-printerSDK = PrinterSDK.getInstance();
-printerConnection = printerSDK.createConnection();
-```
-
-### 4. Backend API Configuration
-
-Modify `src/services/api.ts`:
-
-```typescript
-export const BASE_URL = 'https://your-backend.example.com';
-```
-
-### 5. Android Permissions
-
-Android permissions are already configured in `AndroidManifest.xml`:
-
-- Bluetooth (printing)
-- Network (API)
-- Storage (offline cache)
-- Location (Bluetooth)
-
-## 📱 Deployment
-
-### Development
-
+2. **Set Java version**:
    ```bash
-# Start Metro
-yarn start
+   export JAVA_HOME=/path/to/jdk-17
+   ```
 
-# Android
-   yarn android
+3. **Build the project**:
+   ```bash
+   ./gradlew assembleDebug
+   ```
+
+4. **Install on device**:
+   ```bash
+   ./gradlew installDebug
+   ```
+
+### Android Studio Setup
+
+1. **Open project** in Android Studio
+2. **Sync Gradle** files
+3. **Connect device** or start emulator
+4. **Run** the application (▶️ button)
+
+## 🏗️ Project Structure
+
 ```
-
-### Production
-
-#### 1. Build Android
-
-```bash
-# Debug
-cd android && ./gradlew assembleDebug
-
-# Release
-cd android && ./gradlew assembleRelease
+pos_android_app/
+├── src/main/java/com/dspread/pos/
+│   ├── managers/           # Core business logic managers
+│   │   ├── ApiManager.java      # DGI API integration
+│   │   ├── PrinterManager.java  # Thermal printing
+│   │   └── StorageManager.java  # Local storage & sync
+│   ├── models/             # Data models
+│   │   ├── InvoiceData.java
+│   │   ├── InvoiceLine.java
+│   │   ├── Issuer.java
+│   │   ├── Customer.java
+│   │   └── Response models...
+│   ├── ui/invoice/         # Invoice UI components
+│   │   ├── InvoiceFragment.java
+│   │   └── InvoiceViewModel.java
+│   └── utils/              # Utility classes
+│       ├── TRACE.java           # Logging utility
+│       └── InvoiceTestData.java # Test data generator
+├── src/main/res/
+│   ├── layout/             # UI layouts
+│   ├── values/             # Colors, strings, styles
+│   └── drawable/           # Icons and images
+└── libs/                   # External libraries
+    ├── dspread_pos_sdk_7.7.1.aar
+    ├── dspread_print_sdk-1.7.4-beta.aar
+    └── mvvmhabit-release.aar
 ```
-
-#### 2. Install on FP9900
-
-1. Enable developer mode on terminal
-2. Enable USB debugging
-3. Install APK:
-
-```bash
-adb install app-release.apk
-```
-
-**Note**: Application ID is `com.fp9900.pos`
-
-#### 3. Terminal Configuration
-
-1. Configure network connection (WiFi/4G)
-2. Test printing with test page
-3. Configure DGI settings (IFU, etc.)
 
 ## 🔧 Configuration
 
-### Environment Variables
-
-Create `.env`:
-
-```env
-API_BASE_URL=https://your-backend.example.com
-API_TIMEOUT=30000
-API_RETRY_ATTEMPTS=3
-
-# DGI Configuration
-DGI_API_KEY=your-dgi-api-key
-DGI_CERTIFICATE_PATH=path/to/certificate.pem
-
-# Printer Configuration
-PRINTER_TIMEOUT=10000
-PRINTER_RETRY_ATTEMPTS=2
-PRINTER_CONNECTION_TYPE=bluetooth
-
-# Synchronization Configuration
-SYNC_INTERVAL=60000
-SYNC_BATCH_SIZE=10
-SYNC_MAX_ATTEMPTS=3
-
-# Development Configuration
-DEBUG_MODE=true
-LOG_LEVEL=debug
-MOCK_PRINTER=false
-
-# Security Configuration
-ENABLE_SSL_PINNING=true
-CERTIFICATE_PINNING_HASH=your-certificate-hash
-
-# Performance Configuration
-CACHE_SIZE=50
-CACHE_TTL=3600000
-MAX_CONCURRENT_REQUESTS=5
-```
-
-### DGI Configuration
-
-1. **Issuer IFU**: Fiscal identification number of the company
-2. **Backend API**: URL and authentication keys
-3. **Certificates**: SSL certificates for secure communication
+### API Configuration
+The application is configured to use the DGI certification API:
+- **Base URL**: `https://api.invoice.fisc.kpsaccess.com:9443`
+- **Timeout**: 30 seconds
+- **Endpoints**:
+  - `/api/invoice/create` - Create invoice
+  - `/api/invoice/fiscalize` - Fiscalize invoice
+  - `/api/invoice/verify` - Verify certification
 
 ### Printer Configuration
+- **SDK**: DSpread Thermal Printer SDK
+- **Connection**: Bluetooth/USB
+- **Paper Width**: 58mm standard
 
-The printing module supports:
+## 📱 Usage
 
-- **Thermal printing** 58mm/80mm
-- **QR codes** for certification
-- **Formatted text** (bold, alignment, size)
-- **Automatic paper cutting**
+### Creating an Invoice
+1. **Navigate** to the Invoice tab
+2. **Fill in** invoice details:
+   - Invoice Number
+   - Machine Number
+   - Issuer information
+   - Customer information
+3. **Add items** using "Add Item" button
+4. **Click** "Certify Invoice" to start certification
 
-## 🧪 Testing
+### Certification Process
+The system follows a three-step process:
+1. **Create**: Submit invoice data to DGI
+2. **Fiscalize**: Process fiscal validation
+3. **Verify**: Confirm certification and get QR code
 
-### Unit Tests
+### Offline Mode
+- Invoices are stored locally when offline
+- Automatic sync when connection is restored
+- View pending invoices in the sync status
 
-```bash
-yarn test
-```
-
-### Integration Tests
-
-```bash
-# API test
-yarn test:api
-
-# Printer test
-yarn test:printer
-
-# Offline test
-yarn test:offline
-```
-
-### Terminal Testing
-
-1. **Print test**: Use "Test Printer" button
-2. **Certification test**: Create a test invoice
-3. **Offline test**: Disconnect network and check synchronization
-
-## 📊 Monitoring
-
-### Logs
-
-Logs are available via:
-
-```bash
-# Android
-adb logcat | grep "FP9900POS"
-
-# Metrics
-yarn logs:metrics
-```
-
-### Key Metrics
-
-- **Certification rate**: % of successfully certified invoices
-- **Response time**: DGI API latency
-- **Print errors**: Hardware issues
-- **Offline sync**: Queue and retry status
-
-## 🚨 Troubleshooting
+## 🐛 Troubleshooting
 
 ### Common Issues
 
-#### 1. "Printer not initialized" Error
+1. **ANR (Application Not Responding)**:
+   - Ensure Java 17 is used (not Java 23)
+   - Check that managers initialize in background threads
 
-```bash
-# Check Bluetooth connection
-adb shell dumpsys bluetooth
+2. **Build Errors**:
+   - Verify JAVA_HOME points to JDK 17
+   - Clean and rebuild: `./gradlew clean assembleDebug`
 
-# Restart printing service
-adb shell am force-stop com.fp9900.pos
-```
+3. **API Connection Issues**:
+   - Check network connectivity
+   - Verify API endpoint configuration
+   - Check timeout settings
 
-#### 2. API Certification Error
-
-```bash
-# Check connectivity
-curl -I https://your-backend.example.com/health
-
-# Check backend logs
-yarn logs:backend
-```
-
-#### 3. Offline Sync Issue
-
-```bash
-# Check local storage
-adb shell run-as com.fp9900.pos ls /data/data/com.fp9900.pos/shared_prefs/
-
-# Clear cache
-yarn clean:cache
-```
-
-### Error Codes
-
-| Code | Description | Solution |
-|------|-------------|----------|
-| `PRINTER_NOT_FOUND` | Printing module not found | Check SDK installation |
-| `NETWORK_ERROR` | Connectivity issue | Check network |
-| `API_TIMEOUT` | DGI API timeout | Increase timeout |
-| `VALIDATION_ERROR` | Invalid invoice data | Check data format |
+### Debug Information
+- **Logs**: Use `TRACE.i()`, `TRACE.e()` for logging
+- **Tag**: Filter logs by "POS_LOG" tag
+- **Crash Reports**: Integrated Bugly crash reporting
 
 ## 🔒 Security
 
-### Best Practices
-
-1. **SSL Certificates**: Use HTTPS for all communications
-2. **Authentication**: JWT tokens with expiration
-3. **Encryption**: Encrypt sensitive data locally
-4. **Audit**: Log all critical operations
-
-### DGI Compliance
-
-- **Timestamping**: All invoices timestamped
-- **Traceability**: Complete audit trail
-- **Integrity**: Digital signature of data
-- **Archiving**: Data retention according to regulations
-
-## 📈 Performance
-
-### Optimizations
-
-1. **Cache**: Cache frequent data
-2. **Compression**: Compress network data
-3. **Lazy loading**: Load on demand
-4. **Background sync**: Background synchronization
-
-### Monitoring
-
-```bash
-# Performance metrics
-yarn perf:metrics
-
-# Memory profiling
-yarn perf:memory
-
-# Network analysis
-yarn perf:network
-```
-
-## 🧪 Testing
-
-### Test Suite
-
-The application includes a comprehensive test suite accessible through the Configuration screen:
-
-- **Quick Tests**: Basic functionality validation
-- **Full Test Suite**: Comprehensive application testing
-- **Configuration Tests**: Configuration validation
-- **Authentication Tests**: Authentication system checks
-- **Security Tests**: Security features validation
-- **Printer Tests**: Printer service validation
-- **Storage Tests**: Offline storage checks
-- **Monitoring Tests**: Performance monitoring validation
-
-### Running Tests
-
-```bash
-# Run tests from the app
-1. Open the app
-2. Navigate to Configuration
-3. Tap "Run Tests"
-4. View results and export reports
-```
-
-## 🔐 Security Features
-
-### Authentication
-- Secure login system with token management
-- Automatic token refresh and session validation
-- Session timeout and logout functionality
-
-### Data Protection
-- SSL certificate pinning for API communication
-- Data encryption at rest for sensitive information
-- Secure key generation and management
-
-### Audit Logging
-- Comprehensive audit trail for all user actions
-- Compliance-ready logging for regulatory requirements
-- Export capabilities for audit reports
-
-## 📊 Monitoring & Analytics
-
-### Performance Metrics
-- API response times and latency tracking
-- Success/failure rates for all operations
-- Error tracking and categorization
-- Resource usage monitoring
-
-### Real-time Statistics
-- Certification success rates
-- Print operation success rates
-- Synchronization statistics
-- Network connectivity status
-
-### Export Capabilities
-- Performance data export
-- Audit log export
-- Test result export
-- Statistics report generation
-
-## 🤝 Contributing
-
-### Workflow
-
-1. Fork the project
-2. Create a feature branch
-3. Commit changes
-4. Create a Pull Request
-
-### Standards
-
-- **Code**: ESLint + Prettier
-- **Tests**: Coverage > 80%
-- **Documentation**: JSDoc for public functions
-- **Commits**: Conventional Commits
-- **Security**: Security tests must pass
-- **Monitoring**: Performance metrics must be within acceptable ranges
-
-## 📞 Support
-
-### Contact
-
-- **Email**: support@yourcompany.com
-- **Documentation**: [docs.yourcompany.com](https://docs.yourcompany.com)
-- **Issues**: [GitHub Issues](https://github.com/yourcompany/fp9900-pos/issues)
-
-### SLA
-
-- **Critical**: < 4h (business days)
-- **Important**: < 24h
-- **Standard**: < 72h
+- **Signing**: Debug and release builds are signed
+- **Keystore**: Uses app.keystore for signing
+- **API Security**: HTTPS communication with DGI API
+- **Data Protection**: Local storage with encryption
 
 ## 📄 License
 
-Copyright © 2024 Your Company. All rights reserved.
+This project is licensed under the terms specified in the LICENSE file.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📞 Support
+
+For technical support or questions:
+- Check the troubleshooting section
+- Review the logcat output
+- Ensure all requirements are met
 
 ---
 
-## 📋 Deployment Checklist
-
-- [ ] FP9900 SDK installed and configured
-- [ ] Backend API accessible and tested
-- [ ] SSL certificates configured
-- [ ] Android permissions granted
-- [ ] Print tests successful
-- [ ] Certification tests successful
-- [ ] Offline mode tested
-- [ ] Monitoring configured
-- [ ] User documentation provided
-- [ ] Team training completed
-
-## 🔄 Changelog
-
-### v1.0.0 (2024-01-XX)
-- ✨ First stable release
-- 🎯 Complete DGI certification
-- 📱 Optimized touch interface
-- 🖨️ FP9900 thermal printing
-- 🔄 Offline synchronization
-- 🛡️ Robust error handling
+**Version**: 8.0.6 (Build 106)  
+**Last Updated**: October 2024  
+**Compatibility**: Android 7.0+ (API 24+)
