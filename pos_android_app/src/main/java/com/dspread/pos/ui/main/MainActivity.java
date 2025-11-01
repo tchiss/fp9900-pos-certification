@@ -129,7 +129,13 @@ public class MainActivity extends BaseActivity<ActivityMainBinding, MainViewMode
     protected void onDestroy() {
         super.onDestroy();
         TRACE.i("main is onDestroy");
-        POSManager.getInstance().close();
+        try {
+            POSManager.getInstance().close();
+        } catch (IllegalStateException e) {
+            TRACE.e("POSManager not initialized, skipping close: " + e.getMessage());
+        } catch (Exception e) {
+            TRACE.e("Error closing POSManager: " + e.getMessage());
+        }
         SPUtils.getInstance().put("isConnected",false);
         SPUtils.getInstance().put("device_type", "");
     }

@@ -147,6 +147,9 @@ public class InvoiceData {
         if (issuer.getIdentityNumber() == null || issuer.getIdentityNumber().trim().isEmpty()) {
             return false;
         }
+        if (issuer.getTel() == null || issuer.getTel().trim().isEmpty()) {
+            return false;
+        }
         if (customer == null || customer.getName() == null || customer.getName().trim().isEmpty()) {
             return false;
         }

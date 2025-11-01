@@ -31,16 +31,56 @@ public class TerminalApplication extends BaseApplication {
     @Override
     public void onCreate() {
         super.onCreate();
-        initCrash();
-        initBugly();
-        initShiply();
-        // Initialize Fragment Cache
-        FragmentCacheManager.getInstance();
-        TRACE.setContext(this);
-        POSManager.init(this);
         
-        // Initialize new managers for DGI certification
-        initializeManagers();
+        // MINIMAL initialization - only what's absolutely necessary
+        TRACE.setContext(this);
+        
+        // STEP 2: Test ApiManager + StorageManager initialization (SYNCHRONOUS)
+        TRACE.i("TerminalApplication: Testing ApiManager + StorageManager initialization (SYNC)");
+        
+        try {
+            // Initialize managers synchronously to avoid timing issues
+            // ApiManager now uses singleton pattern with context
+            TRACE.i("ApiManager will be initialized on first use");
+            
+            StorageManager.initialize(TerminalApplication.this);
+            TRACE.i("StorageManager initialized successfully");
+            
+            // Initialize POSManager to prevent crash in MainActivity.onDestroy()
+            POSManager.init(TerminalApplication.this);
+            TRACE.i("POSManager initialized successfully");
+            
+            // Initialize PrinterManager
+            PrinterManager.initialize(TerminalApplication.this);
+            TRACE.i("PrinterManager initialized successfully");
+            
+            // Verify that instances are accessible
+            ApiManager apiManager = ApiManager.getInstance(TerminalApplication.this);
+            StorageManager storageManager = StorageManager.getInstance();
+            
+            TRACE.i("TerminalApplication: All managers initialized and verified successfully");
+            TRACE.i("TerminalApplication: ApiManager instance: " + (apiManager != null ? "OK" : "NULL"));
+            TRACE.i("TerminalApplication: StorageManager instance: " + (storageManager != null ? "OK" : "NULL"));
+        } catch (Exception e) {
+            TRACE.e("Error initializing managers: " + e.getMessage());
+        }
+        
+        // TODO: Re-enable other managers after confirming ApiManager doesn't cause ANR
+        /*
+        initCrash();
+        new Thread(() -> {
+            try {
+                initBugly();
+                initShiply();
+                FragmentCacheManager.getInstance();
+                POSManager.init(TerminalApplication.this);
+                // StorageManager.initialize(TerminalApplication.this);
+                // PrinterManager.initialize(TerminalApplication.this);
+            } catch (Exception e) {
+                TRACE.e("Error in background initialization: " + e.getMessage());
+            }
+        }).start();
+        */
     }
 
     private void initCrash() {
@@ -103,24 +143,20 @@ public class TerminalApplication extends BaseApplication {
     }
 
     private void initializeManagers() {
-        // Move heavy initialization to background thread to prevent ANR
-        new Thread(() -> {
-            try {
-                // Initialize API Manager for DGI certification
-                ApiManager.initialize(TerminalApplication.this);
-                TRACE.i("ApiManager initialized successfully");
-                
-                // Initialize Printer Manager for thermal printing
-                PrinterManager.initialize(TerminalApplication.this);
-                TRACE.i("PrinterManager initialized successfully");
-                
-                // Initialize Storage Manager for offline sync
-                StorageManager.initialize(TerminalApplication.this);
-                TRACE.i("StorageManager initialized successfully");
-                
-            } catch (Exception e) {
-                TRACE.e("Error initializing managers: " + e.getMessage());
-            }
-        }).start();
+        try {
+            // ApiManager now uses singleton pattern with context
+            TRACE.i("ApiManager will be initialized on first use");
+            
+            // Initialize Printer Manager for thermal printing
+            PrinterManager.initialize(TerminalApplication.this);
+            TRACE.i("PrinterManager initialized successfully");
+            
+            // Initialize Storage Manager for offline sync
+            StorageManager.initialize(TerminalApplication.this);
+            TRACE.i("StorageManager initialized successfully");
+            
+        } catch (Exception e) {
+            TRACE.e("Error initializing managers: " + e.getMessage());
+        }
     }
 }

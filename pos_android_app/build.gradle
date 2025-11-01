@@ -43,6 +43,7 @@ android {
             // Set up supported SO library architecture
             abiFilters 'armeabi-v7a' , 'arm64-v8a', 'x86_64' //'x86'
         }
+        
     }
 
     buildTypes {
@@ -59,9 +60,13 @@ android {
         dataBinding true
         buildConfig true
     }
-    //Important: Disable modern packaging formats (otherwise a generic APK will be generated)
+    
+    // Support for 16 KB page size alignment and preserve SO files
     packagingOptions {
-        doNotStrip '**/lib/*.so' // 保留所有SO文件
+        jniLibs {
+            useLegacyPackaging = false
+        }
+        doNotStrip '**/lib/*.so' // Preserve all SO files
     }
 }
 
@@ -76,9 +81,14 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.5.0'
     implementation 'androidx.gridlayout:gridlayout:1.0.0'
+    // Test dependencies for ANR detection
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:3.12.4'
+    
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test:rules:1.6.2'
     implementation 'androidx.navigation:navigation-fragment:2.4.1'
     implementation 'androidx.navigation:navigation-ui:2.4.1'
 //    implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.25'

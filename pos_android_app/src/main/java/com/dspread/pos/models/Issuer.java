@@ -7,8 +7,15 @@ package com.dspread.pos.models;
 public class Issuer {
     private String name;
     private String identityNumber;
+    private String tel; // Phone number
 
     public Issuer() {
+    }
+
+    public Issuer(String name, String identityNumber, String tel) {
+        this.name = name;
+        this.identityNumber = identityNumber;
+        this.tel = tel;
     }
 
     public Issuer(String name, String identityNumber) {
@@ -33,11 +40,20 @@ public class Issuer {
         this.identityNumber = identityNumber;
     }
 
+    public String getTel() {
+        return tel;
+    }
+
+    public void setTel(String tel) {
+        this.tel = tel;
+    }
+
     @Override
     public String toString() {
         return "Issuer{" +
                 "name='" + name + '\'' +
                 ", identityNumber='" + identityNumber + '\'' +
+                ", tel='" + tel + '\'' +
                 '}';
     }
 }

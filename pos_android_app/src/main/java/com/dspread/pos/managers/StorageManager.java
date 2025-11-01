@@ -185,7 +185,7 @@ public class StorageManager {
             return;
         }
 
-        ApiManager apiManager = ApiManager.getInstance();
+        ApiManager apiManager = ApiManager.getInstance(context);
         int syncedCount = 0;
         int totalCount = pending.size();
         
@@ -204,7 +204,7 @@ public class StorageManager {
 
         InvoiceData invoice = pending.get(index);
         
-        apiManager.certifyInvoiceComplete(invoice, new ApiManager.InvoiceCertificationCallback() {
+        apiManager.certifyInvoice(invoice, new ApiManager.ApiCallback<InvoiceVerificationResponse>() {
             @Override
             public void onSuccess(InvoiceVerificationResponse response) {
                 // Sauvegarder comme certifiée
