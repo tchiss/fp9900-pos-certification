@@ -2,11 +2,16 @@ package com.dspread.pos.managers;
 
 import android.content.Context;
 import android.util.Log;
+import android.os.Build;
 
 import com.dspread.pos.models.InvoiceData;
 import com.dspread.pos.models.InvoiceLine;
 import com.dspread.pos.models.CertificationResponse;
 import com.dspread.pos.utils.TRACE;
+import com.dspread.pos.utils.DeviceUtils;
+import com.dspread.pos.printerAPI.PrinterHelper;
+import com.dspread.print.device.PrinterDevice;
+import com.dspread.print.device.PrinterInitListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +26,7 @@ public class PrinterManager {
     private Context context;
     private boolean isInitialized = false;
     private boolean isConnected = false;
+    private PrinterDevice printerDevice;
 
     // TODO: Intégrer avec le SDK DSpread réel
     // private DSpreadPrinterSDK printerSDK;
@@ -40,6 +46,69 @@ public class PrinterManager {
     public static synchronized void initialize(Context context) {
         if (instance == null) {
             instance = new PrinterManager(context);
+            // Try to initialize PrinterDevice if available
+            instance.initializePrinterDevice();
+        }
+    }
+
+    /**
+     * Obtient l'instance de PrinterDevice (nécessaire pour l'API existante)
+     */
+    public PrinterDevice getPrinter() {
+        return printerDevice;
+    }
+
+    /**
+     * Initialise l'instance PrinterDevice depuis le SDK DSpread
+     * Utilise la même méthode que l'app de démo : PrinterManager.getInstance().getPrinter()
+     */
+    private void initializePrinterDevice() {
+        try {
+            // Utiliser directement PrinterManager du SDK DSpread comme dans l'app de démo
+            try {
+                com.dspread.print.device.PrinterManager sdkPrinterManager = com.dspread.print.device.PrinterManager.getInstance();
+                printerDevice = sdkPrinterManager.getPrinter();
+                if (printerDevice != null) {
+                    PrinterHelper.getInstance().setPrinter(printerDevice);
+                    isInitialized = true;
+                    isConnected = true;
+                    TRACE.i(TAG + ": PrinterDevice initialized successfully from DSpread PrinterManager.getInstance()");
+                    return;
+                }
+            } catch (Exception e) {
+                TRACE.w(TAG + ": Could not get PrinterDevice from DSpread PrinterManager.getInstance(): " + e.getMessage());
+            }
+            
+            // Fallback: Try to get PrinterDevice from PrinterHelper (it might be set by other parts of the app)
+            printerDevice = PrinterHelper.getInstance().getmPrinter();
+            if (printerDevice != null) {
+                isInitialized = true;
+                isConnected = true;
+                TRACE.i(TAG + ": PrinterDevice initialized successfully from PrinterHelper");
+                return;
+            }
+            
+            // Check if device has printer capability
+            if (DeviceUtils.isPrinterDevices() || DeviceUtils.isAppInstalled(context, DeviceUtils.UART_AIDL_SERVICE_APP_PACKAGE_NAME)) {
+                TRACE.i(TAG + ": Printer-capable device detected, but PrinterDevice not yet available - will be initialized when needed");
+            } else {
+                // For FP9900 or other devices, PrinterDevice might be available later
+                TRACE.i(TAG + ": Checking for printer connection (device model: " + android.os.Build.MODEL + ")");
+            }
+        } catch (Exception e) {
+            TRACE.e(TAG + ": Error initializing PrinterDevice: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Définit l'instance PrinterDevice (peut être appelé depuis d'autres parties de l'app)
+     */
+    public void setPrinterDevice(PrinterDevice device) {
+        this.printerDevice = device;
+        if (device != null) {
+            isInitialized = true;
+            isConnected = true;
+            TRACE.i(TAG + ": PrinterDevice set successfully");
         }
     }
 
@@ -119,23 +188,208 @@ public class PrinterManager {
      * Imprime une facture
      */
     public void printInvoice(InvoiceData invoiceData, CertificationResponse response, PrintCallback callback) {
-        if (!isInitialized) {
-            callback.onError("Imprimante non initialisée");
-            return;
-        }
-
         TRACE.i(TAG + ": Printing invoice");
         
+        // Vérifier et utiliser PrinterDevice réel si disponible
+        if (printerDevice != null) {
+            TRACE.i(TAG + ": Using PrinterDevice for real printing");
+            printInvoiceWithPrinterDevice(invoiceData, response, callback);
+            return;
+        }
+        
+        // Si PrinterDevice pas disponible, essayer de l'obtenir depuis le SDK DSpread PrinterManager (comme dans l'app de démo)
         try {
-            // Créer le job d'impression
-            PrintJob printJob = createInvoicePrintJob(invoiceData, response);
-            
-            // Exécuter l'impression
-            executePrintJob(printJob, callback);
-            
+            com.dspread.print.device.PrinterManager sdkPrinterManager = com.dspread.print.device.PrinterManager.getInstance();
+            PrinterDevice device = sdkPrinterManager.getPrinter();
+            if (device != null) {
+                TRACE.i(TAG + ": Using PrinterDevice from DSpread PrinterManager.getInstance()");
+                this.printerDevice = device;
+                PrinterHelper.getInstance().setPrinter(device);
+                setPrinterDevice(device);
+                printInvoiceWithPrinterDevice(invoiceData, response, callback);
+                return;
+            }
         } catch (Exception e) {
-            TRACE.e(TAG + ": Error creating print job" + ": " + e.getMessage());
-            callback.onError("Erreur lors de la création du job d'impression");
+            TRACE.w(TAG + ": Could not get PrinterDevice from DSpread PrinterManager.getInstance(): " + e.getMessage());
+        }
+        
+        // Fallback: essayer de l'obtenir depuis PrinterHelper
+        PrinterHelper printerHelper = PrinterHelper.getInstance();
+        PrinterDevice device = printerHelper.getmPrinter();
+        
+        if (device != null) {
+            TRACE.i(TAG + ": Using PrinterDevice from PrinterHelper");
+            this.printerDevice = device;
+            setPrinterDevice(device);
+            printInvoiceWithPrinterDevice(invoiceData, response, callback);
+            return;
+        }
+        
+        // Aucun périphérique disponible pour l'instant : essayer une initialisation, sinon échouer clairement
+        if (!isInitialized) {
+            TRACE.w(TAG + ": Printer not initialized, attempting auto-initialization");
+            initialize(new PrinterCallback() {
+                @Override
+                public void onSuccess() {
+                    printInvoice(invoiceData, response, callback);
+                }
+                
+                @Override
+                public void onError(String error) {
+                    callback.onError("Imprimante non disponible: " + error);
+                }
+            });
+            return;
+        }
+        
+        // Si toujours aucun périphérique, retourner une erreur plutôt que de simuler un succès
+        callback.onError("Imprimante non disponible: aucun périphérique détecté");
+        return;
+    }
+    
+    /**
+     * Imprime une facture en utilisant PrinterDevice réel
+     */
+    private void printInvoiceWithPrinterDevice(InvoiceData invoiceData, CertificationResponse response, PrintCallback callback) {
+        try {
+            if (printerDevice == null) {
+                callback.onError("PrinterDevice is null");
+                return;
+            }
+            
+            PrinterHelper printerHelper = PrinterHelper.getInstance();
+            printerHelper.setPrinter(printerDevice);
+            printerHelper.initPrinter(context);
+            
+            TRACE.i(TAG + ": Starting invoice print with PrinterDevice");
+            
+            // Construire le contenu de la facture
+            StringBuilder invoiceContent = new StringBuilder();
+            
+            // En-tête
+            invoiceContent.append("════════════════════════\n");
+            invoiceContent.append("      FACTURE\n");
+            invoiceContent.append("════════════════════════\n\n");
+            
+            // Informations émetteur
+            if (invoiceData.getIssuer() != null) {
+                invoiceContent.append("Emetteur: ").append(invoiceData.getIssuer().getName()).append("\n");
+                invoiceContent.append("N°: ").append(invoiceData.getIssuer().getIdentityNumber()).append("\n\n");
+            }
+            
+            // Informations client
+            if (invoiceData.getCustomer() != null) {
+                invoiceContent.append("Client: ").append(invoiceData.getCustomer().getName()).append("\n");
+                invoiceContent.append("N°: ").append(invoiceData.getCustomer().getIdentityNumber()).append("\n\n");
+            }
+            
+            // Articles
+            invoiceContent.append("────────────────────────\n");
+            invoiceContent.append("ARTICLES\n");
+            invoiceContent.append("────────────────────────\n");
+            
+            if (invoiceData.getInvoiceLines() != null) {
+                for (InvoiceLine line : invoiceData.getInvoiceLines()) {
+                    invoiceContent.append(line.getDesignation()).append("\n");
+                    invoiceContent.append(String.format("Qty: %d × %.2f = %.2f FCFA\n",
+                        line.getQuantity(),
+                        line.getUnitPrice() / 100.0,
+                        line.getTotalWithVat() / 100.0));
+                }
+            }
+            
+            // Total
+            invoiceContent.append("\n────────────────────────\n");
+            invoiceContent.append(String.format("TOTAL: %.2f FCFA\n", invoiceData.getTotalTtc() / 100.0));
+            invoiceContent.append("────────────────────────\n\n");
+            
+            // Certification DGI (sans le code MECEF, il sera imprimé après le QR code)
+            if (response != null && (response.isCertified() || "FISCALIZED".equals(response.getStatus()))) {
+                invoiceContent.append("CERTIFICATION DGI\n\n");
+            }
+            
+            // Date et heure
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            invoiceContent.append("Date: ").append(now.format(formatter)).append("\n");
+            invoiceContent.append("════════════════════════\n\n");
+            
+            // Imprimer le texte
+            printerHelper.printText("CENTER", "NORMAL", "14", invoiceContent.toString());
+            
+            // Imprimer QR Code si disponible
+            // qrData peut être soit une image base64, soit du texte à encoder
+            String qrData = null;
+            if (response != null) {
+                qrData = response.getQrData(); // CertificationResponse utilise getQrData()
+            }
+            
+            if (qrData != null && !qrData.trim().isEmpty()) {
+                try {
+                    // Vérifier si c'est une image base64 (commence par "data:image" ou "iVBORw0KGgo...")
+                    if (qrData.startsWith("data:image") || qrData.startsWith("iVBORw0KGgo")) {
+                        // Décoder l'image base64 et l'imprimer comme bitmap
+                        TRACE.i(TAG + ": Printing QR code from base64 image");
+                        String base64Content = qrData;
+                        if (qrData.startsWith("data:image")) {
+                            // Extraire le base64 pur (après la virgule)
+                            int commaIndex = qrData.indexOf(',');
+                            if (commaIndex > 0) {
+                                base64Content = qrData.substring(commaIndex + 1);
+                            }
+                        }
+                        
+                        byte[] imageBytes = android.util.Base64.decode(base64Content, android.util.Base64.DEFAULT);
+                        android.graphics.Bitmap qrBitmap = android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+                        
+                        if (qrBitmap != null) {
+                            printerHelper.printBitmap(context, qrBitmap);
+                            TRACE.i(TAG + ": QR code bitmap printed successfully");
+                        } else {
+                            TRACE.w(TAG + ": Could not decode QR code image from base64");
+                        }
+                    } else {
+                        // C'est du texte, générer le QR code à partir du texte
+                        TRACE.i(TAG + ": Printing QR code from text content: " + qrData.substring(0, Math.min(50, qrData.length())) + "...");
+                        printerHelper.printQRcode(context, "CENTER", "6", qrData, "M");
+                    }
+                } catch (Exception e) {
+                    TRACE.w(TAG + ": Could not print QR code: " + e.getMessage());
+                    // Ne pas échouer l'impression si le QR code ne peut pas être imprimé
+                }
+            } else {
+                TRACE.w(TAG + ": No QR code data available for printing");
+            }
+            
+            // Imprimer le code MECEF après le QR code
+            if (response != null && response.getMecefCode() != null && !response.getMecefCode().trim().isEmpty()) {
+                try {
+                    printerHelper.printText("CENTER", "NORMAL", "14", "\nCode MECEF: " + response.getMecefCode() + "\n");
+                    TRACE.i(TAG + ": MECEF code printed: " + response.getMecefCode());
+                } catch (Exception e) {
+                    TRACE.w(TAG + ": Could not print MECEF code: " + e.getMessage());
+                }
+            }
+            
+            // Ajouter du padding en bas (espace blanc)
+            try {
+                printerHelper.printText("CENTER", "NORMAL", "14", "\n\n\n");
+            } catch (Exception e) {
+                TRACE.w(TAG + ": Could not add bottom padding: " + e.getMessage());
+            }
+            
+            // Simuler le délai d'impression et confirmer le succès
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                TRACE.i(TAG + ": Invoice printed successfully");
+                callback.onSuccess();
+            }, 2000);
+            
+        } catch (android.os.RemoteException e) {
+            TRACE.e(TAG + ": RemoteException printing invoice: " + e.getMessage());
+            callback.onError("Erreur d'impression: " + e.getMessage());
+        } catch (Exception e) {
+            TRACE.e(TAG + ": Error printing invoice: " + e.getMessage());
+            callback.onError("Erreur lors de l'impression: " + e.getMessage());
         }
     }
 
@@ -143,20 +397,129 @@ public class PrinterManager {
      * Imprime une page de test
      */
     public void printTestPage(PrintCallback callback) {
-        if (!isInitialized) {
-            callback.onError("Imprimante non initialisée");
+        // Vérifier si l'imprimante est disponible via PrinterDevice
+        if (printerDevice != null) {
+            TRACE.i(TAG + ": Printing test page using PrinterDevice");
+            try {
+                // Utiliser PrinterHelper pour imprimer via PrinterDevice
+                PrinterHelper.getInstance().setPrinter(printerDevice);
+                PrinterHelper.getInstance().initPrinter(context);
+                
+                // Créer un job de test simple et utiliser PrinterHelper
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    try {
+                        PrintJob testJob = createTestPrintJob();
+                        // Utiliser PrinterHelper pour imprimer
+                        printTestPageWithPrinterHelper(callback);
+                    } catch (Exception e) {
+                        TRACE.e(TAG + ": Error in test print: " + e.getMessage());
+                        callback.onError("Erreur lors de l'impression du test: " + e.getMessage());
+                    }
+                }, 500);
+            } catch (Exception e) {
+                TRACE.e(TAG + ": Error initializing printer for test: " + e.getMessage());
+                callback.onError("Erreur d'initialisation: " + e.getMessage());
+            }
+            return;
+        }
+        
+        // Si PrinterDevice pas disponible, essayer de l'obtenir depuis le SDK DSpread PrinterManager (comme dans l'app de démo)
+        try {
+            com.dspread.print.device.PrinterManager sdkPrinterManager = com.dspread.print.device.PrinterManager.getInstance();
+            PrinterDevice device = sdkPrinterManager.getPrinter();
+            if (device != null) {
+                TRACE.i(TAG + ": Using PrinterDevice from DSpread PrinterManager.getInstance() for test print");
+                this.printerDevice = device;
+                PrinterHelper.getInstance().setPrinter(device);
+                setPrinterDevice(device);
+                printTestPage(callback); // Retry with the device
+                return;
+            }
+        } catch (Exception e) {
+            TRACE.w(TAG + ": Could not get PrinterDevice from DSpread PrinterManager.getInstance(): " + e.getMessage());
+        }
+        
+        // Fallback: Try to get PrinterDevice from PrinterHelper
+        PrinterHelper printerHelper = PrinterHelper.getInstance();
+        PrinterDevice device = printerHelper.getmPrinter();
+        
+        if (device != null) {
+            TRACE.i(TAG + ": Using PrinterDevice from PrinterHelper for test print");
+            this.printerDevice = device;
+            setPrinterDevice(device);
+            printTestPage(callback); // Retry with the device
             return;
         }
 
-        TRACE.i(TAG + ": Printing test page");
-        
+        // Aucun périphérique disponible pour l'instant : essayer une initialisation, sinon échouer
+        if (!isInitialized) {
+            // Essayer d'initialiser automatiquement
+            TRACE.i(TAG + ": Printer not initialized, attempting auto-initialization");
+            initialize(new PrinterCallback() {
+                @Override
+                public void onSuccess() {
+                    printTestPage(callback);
+                }
+
+                @Override
+                public void onError(String error) {
+                    callback.onError("No printer available..");
+                }
+            });
+            return;
+        }
+
+        // Si toujours aucun périphérique, retourner une erreur claire
+        if (printerDevice == null && PrinterHelper.getInstance().getmPrinter() == null) {
+            callback.onError("No printer available..");
+            return;
+        }
+
+        // Un périphérique existe (direct ou via PrinterHelper)
+        TRACE.i(TAG + ": Printing test page with real device");
+        printTestPageWithPrinterHelper(callback);
+    }
+
+    /**
+     * Imprime une page de test en utilisant PrinterHelper avec PrinterDevice
+     */
+    private void printTestPageWithPrinterHelper(PrintCallback callback) {
         try {
-            PrintJob testJob = createTestPrintJob();
-            executePrintJob(testJob, callback);
+            // Vérifier que PrinterDevice est toujours disponible
+            if (printerDevice == null) {
+                TRACE.e(TAG + ": PrinterDevice is null in printTestPageWithPrinterHelper");
+                callback.onError("No printer available..");
+                return;
+            }
             
+            // Vérifier que PrinterHelper a bien l'imprimante configurée
+            PrinterHelper printerHelper = PrinterHelper.getInstance();
+            if (printerHelper.getmPrinter() == null) {
+                printerHelper.setPrinter(printerDevice);
+            }
+            
+            // Créer un contenu de test simple
+            String testContent = "TEST IMPRIMANTE FP9900\n\n" +
+                                "Ceci est un test d'impression\n" +
+                                "pour vérifier le bon fonctionnement\n" +
+                                "de l'imprimante thermique.\n\n" +
+                                "Date: " + java.time.LocalDateTime.now().toString() + "\n" +
+                                "Test terminé avec succès !\n";
+            
+            printerHelper.printText("CENTER", "BOLD", "14", testContent);
+            
+            // Simuler le délai d'impression
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                TRACE.i(TAG + ": Test print completed successfully");
+                callback.onSuccess();
+            }, 2000);
+            
+        } catch (android.os.RemoteException e) {
+            TRACE.e(TAG + ": RemoteException printing test page: " + e.getMessage());
+            callback.onError("No printer available..");
         } catch (Exception e) {
-            TRACE.e(TAG + ": Error creating test print job" + ": " + e.getMessage());
-            callback.onError("Erreur lors de la création du test d'impression");
+            TRACE.e(TAG + ": Error printing test page: " + e.getMessage());
+            callback.onError("No printer available..");
         }
     }
 

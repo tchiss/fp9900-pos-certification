@@ -1,11 +1,14 @@
 package com.dspread.pos.models;
 
+import com.google.gson.annotations.SerializedName;
+
 /**
  * Response model for invoice creation
- * Based on API documentation
+ * Based on KPS Access API - API returns { "id": "...", ... }
  */
 public class InvoiceCreationResponse {
-    private String invoiceId; // The unique invoice ID returned by the API
+    @SerializedName("id")
+    private String invoiceId; // The unique invoice ID returned by the API (mapped from "id" field)
     private String status; // Status of the creation (e.g., "CREATED", "ERROR")
     private String message; // Optional message
     private String errorCode; // Error code if creation failed (e.g., REJ001, REJ002, etc.)

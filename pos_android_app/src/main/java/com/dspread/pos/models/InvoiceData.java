@@ -156,6 +156,9 @@ public class InvoiceData {
         if (customer.getIdentityNumber() == null || customer.getIdentityNumber().trim().isEmpty()) {
             return false;
         }
+        if (customer.getTel() == null || customer.getTel().trim().isEmpty()) {
+            return false;
+        }
         if (invoiceLines == null || invoiceLines.isEmpty()) {
             return false;
         }

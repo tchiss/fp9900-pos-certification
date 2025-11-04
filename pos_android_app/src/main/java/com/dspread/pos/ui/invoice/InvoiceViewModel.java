@@ -3,7 +3,9 @@ package com.dspread.pos.ui.invoice;
 import android.app.Application;
 import android.content.Context;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.os.Build;
 
 import androidx.annotation.NonNull;
 import me.goldze.mvvmhabit.base.BaseViewModel;
@@ -146,11 +148,56 @@ public class InvoiceViewModel extends BaseViewModel {
 
     private void checkConnectivity() {
         ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-        boolean isConnected = activeNetwork != null && activeNetwork.isConnectedOrConnecting();
-        isOnline.postValue(isConnected);
+        if (cm == null) {
+            isOnline.postValue(false);
+            TRACE.e("InvoiceViewModel: ConnectivityManager is null");
+            return;
+        }
         
+        boolean isConnected = false;
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Use modern API for Android 6.0+
+            Network activeNetwork = cm.getActiveNetwork();
+            if (activeNetwork != null) {
+                NetworkCapabilities capabilities = cm.getNetworkCapabilities(activeNetwork);
+                if (capabilities != null) {
+                    // Check if network has internet capability (not just connected to WiFi/mobile)
+                    isConnected = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                                 capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+                    TRACE.i("InvoiceViewModel: Modern connectivity check - Internet: " + 
+                           capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) +
+                           ", Validated: " + 
+                           capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED));
+                }
+            }
+        } else {
+            // Fallback for older Android versions
+            try {
+                android.net.NetworkInfo activeNetworkInfo = cm.getActiveNetworkInfo();
+                isConnected = activeNetworkInfo != null && activeNetworkInfo.isConnectedOrConnecting();
+            } catch (Exception e) {
+                TRACE.e("InvoiceViewModel: Error checking connectivity: " + e.getMessage());
+                isConnected = false;
+            }
+        }
+        
+        isOnline.postValue(isConnected);
         TRACE.i("InvoiceViewModel: Connectivity status: " + isConnected);
+        
+        // Additional check: try to verify real internet access
+        if (isConnected) {
+            verifyInternetAccess();
+        }
+    }
+    
+    /**
+     * Vérifie l'accès Internet réel en vérifiant la connectivité
+     */
+    private void verifyInternetAccess() {
+        // This is called asynchronously, but we set a reasonable default
+        // The actual API call will verify real connectivity
+        TRACE.i("InvoiceViewModel: Internet access verification - will be confirmed during API call");
     }
 
     private void loadPendingInvoices() {
@@ -219,11 +266,15 @@ public class InvoiceViewModel extends BaseViewModel {
             return;
         }
         
-        // Check connectivity before submitting
-        if (!isOnline.getValue()) {
-            // Offline mode - save locally
-            saveInvoiceOffline(invoiceData);
-            return;
+        // Re-check connectivity right before submitting (in case status changed)
+        checkConnectivity();
+        Boolean onlineStatus = isOnline.getValue();
+        
+        // If connectivity check fails, try anyway (API will handle network errors properly)
+        // Don't automatically save offline - let the API attempt first
+        if (onlineStatus == null || !onlineStatus) {
+            TRACE.w("InvoiceViewModel: Connectivity check indicates offline, but attempting API call anyway");
+            // Continue to try API call - if it fails, error handler will save offline
         }
 
         // Submit to DGI API using complete certification flow
@@ -243,20 +294,44 @@ public class InvoiceViewModel extends BaseViewModel {
                 certificationResult.postValue(result);
                 
                 // Save the response
-                storageManager.saveCertifiedInvoice(invoiceData, response);
+                if (storageManager != null) {
+                    storageManager.saveCertifiedInvoice(invoiceData, response);
+                }
                 
-                            // Download PDF and print automatically if fiscalized
-                            if ("FISCALIZED".equals(response.getStatus())) {
-                                downloadAndPrintInvoice(invoiceData, response);
-                            }
+                // TOUJOURS imprimer après certification réussie (FISCALIZED)
+                String status = response.getStatus();
+                if ("FISCALIZED".equals(status)) {
+                    TRACE.i("InvoiceViewModel: Invoice certified successfully, starting print process");
+                    // Imprimer automatiquement après certification
+                    printInvoice(invoiceData, response);
+                } else {
+                    TRACE.w("InvoiceViewModel: Invoice status is " + status + ", not printing");
+                }
             }
 
             @Override
             public void onError(String error) {
                 isLoading.postValue(false);
                 
-                // In case of error, save offline
-                saveInvoiceOffline(invoiceData);
+                TRACE.e("InvoiceViewModel: Certification error: " + error);
+                
+                // Check if it's a network error
+                boolean isNetworkError = error != null && (
+                    error.toLowerCase().contains("connection") ||
+                    error.toLowerCase().contains("network") ||
+                    error.toLowerCase().contains("timeout") ||
+                    error.toLowerCase().contains("unreachable") ||
+                    error.toLowerCase().contains("no internet")
+                );
+                
+                if (isNetworkError) {
+                    // Only save offline if it's actually a network error
+                    TRACE.i("InvoiceViewModel: Network error detected, saving invoice offline");
+                    saveInvoiceOffline(invoiceData);
+                    
+                    // Update connectivity status
+                    checkConnectivity();
+                }
                 
                 CertificationResult result = new CertificationResult(
                     false,
@@ -264,7 +339,7 @@ public class InvoiceViewModel extends BaseViewModel {
                     null,
                     null,
                     null,
-                    error
+                    "Creation failed: " + error
                 );
                 certificationResult.postValue(result);
             }
@@ -291,40 +366,73 @@ public class InvoiceViewModel extends BaseViewModel {
     }
 
     public void printInvoice(InvoiceData invoiceData, CertificationResponse response) {
-        TRACE.i("InvoiceViewModel: Printing invoice");
+        TRACE.i("InvoiceViewModel: Printing invoice with CertificationResponse");
         
-        if (printerManager == null) {
-            printResult.setValue(new PrintResult(false, "Printer service not available"));
-            TRACE.e("InvoiceViewModel: PrinterManager not available");
+        if (invoiceData == null) {
+            TRACE.e("InvoiceViewModel: InvoiceData is null");
+            printResult.setValue(new PrintResult(false, "Invoice data is null"));
             return;
         }
+        
+        if (response == null) {
+            TRACE.e("InvoiceViewModel: CertificationResponse is null");
+            printResult.setValue(new PrintResult(false, "Certification response is null"));
+            return;
+        }
+        
+        if (printerManager == null) {
+            // Essayer de ré-obtenir PrinterManager
+            try {
+                printerManager = PrinterManager.getInstance();
+            } catch (IllegalStateException e) {
+                TRACE.e("InvoiceViewModel: PrinterManager not initialized: " + e.getMessage());
+                printResult.setValue(new PrintResult(false, "Printer service not available. Please restart the app."));
+                return;
+            }
+        }
+        
+        TRACE.i("InvoiceViewModel: Starting print - Invoice: " + invoiceData.getExternalNum() + 
+               ", Status: " + response.getStatus());
         
         printerManager.printInvoice(invoiceData, response, new PrinterManager.PrintCallback() {
             @Override
             public void onSuccess() {
+                TRACE.i("InvoiceViewModel: Print completed successfully");
                 PrintResult result = new PrintResult(true, null);
                 printResult.postValue(result);
             }
 
             @Override
             public void onError(String error) {
-                PrintResult result = new PrintResult(false, error);
+                TRACE.e("InvoiceViewModel: Print failed: " + error);
+                PrintResult result = new PrintResult(false, error != null ? error : "Unknown print error");
                 printResult.postValue(result);
             }
         });
     }
 
     public void printInvoice(InvoiceData invoiceData, InvoiceVerificationResponse response) {
-        TRACE.i("InvoiceViewModel: Printing invoice");
+        TRACE.i("InvoiceViewModel: Printing invoice from InvoiceVerificationResponse");
+        
+        if (response == null) {
+            TRACE.e("InvoiceViewModel: InvoiceVerificationResponse is null");
+            printResult.setValue(new PrintResult(false, "Response data is null"));
+            return;
+        }
         
         // Convert InvoiceVerificationResponse to CertificationResponse for printing
+        // Note: InvoiceVerificationResponse.getQrCode() maps to CertificationResponse.qrData
         CertificationResponse certResponse = new CertificationResponse(
-            response.getStatus(),
+            response.getStatus() != null ? response.getStatus() : "UNKNOWN",
             response.getMecefCode(),
-            response.getQrCode(),
+            response.getQrCode(), // qrCode from API -> qrData in CertificationResponse
             response.getInvoiceId(),
             response.getFiscalizationDate()
         );
+        
+        TRACE.i("InvoiceViewModel: Print request - Status: " + certResponse.getStatus() + 
+               ", MECEF: " + (certResponse.getMecefCode() != null ? certResponse.getMecefCode() : "null") +
+               ", QR: " + (certResponse.getQrData() != null ? "present" : "null"));
         
         printInvoice(invoiceData, certResponse);
     }

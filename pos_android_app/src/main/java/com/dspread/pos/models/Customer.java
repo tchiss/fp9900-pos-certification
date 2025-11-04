@@ -2,25 +2,27 @@ package com.dspread.pos.models;
 
 /**
  * Model for invoice customer (buyer)
- * Based on API documentation requirements
+ * Based on KPS Access - Normalisation Factures API
+ * Format: { "name": "...", "identityNumber": "...", "tel": "..." }
  */
 public class Customer {
     private String name;
     private String identityNumber;
-    private String tel; // Phone number
+    private String tel; // Tel field is required by API
 
     public Customer() {
-    }
-
-    public Customer(String name, String identityNumber, String tel) {
-        this.name = name;
-        this.identityNumber = identityNumber;
-        this.tel = tel;
     }
 
     public Customer(String name, String identityNumber) {
         this.name = name;
         this.identityNumber = identityNumber;
+        this.tel = "+237123456789"; // Default tel if not provided
+    }
+    
+    public Customer(String name, String identityNumber, String tel) {
+        this.name = name;
+        this.identityNumber = identityNumber;
+        this.tel = tel;
     }
 
     // Getters and Setters
@@ -39,11 +41,11 @@ public class Customer {
     public void setIdentityNumber(String identityNumber) {
         this.identityNumber = identityNumber;
     }
-
+    
     public String getTel() {
         return tel;
     }
-
+    
     public void setTel(String tel) {
         this.tel = tel;
     }

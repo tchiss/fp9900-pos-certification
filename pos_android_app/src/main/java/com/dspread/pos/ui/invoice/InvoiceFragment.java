@@ -21,7 +21,8 @@ import com.dspread.pos_android_app.BR;
 import com.dspread.pos_android_app.R;
 import com.dspread.pos_android_app.databinding.FragmentInvoiceBinding;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,6 +57,11 @@ public class InvoiceFragment extends BaseFragment<FragmentInvoiceBinding, Invoic
         
         // Charger les données initiales
         viewModel.loadInitialData();
+
+        // Définir un externalNum aléatoire par défaut s'il est vide
+        if (binding.etExternalNum.getText() == null || binding.etExternalNum.getText().toString().trim().isEmpty()) {
+            binding.etExternalNum.setText(generateExternalNum());
+        }
     }
 
     private void initListeners() {
@@ -162,14 +168,22 @@ public class InvoiceFragment extends BaseFragment<FragmentInvoiceBinding, Invoic
         String customerName = binding.etCustomerName.getText().toString().trim();
         String customerId = binding.etCustomerId.getText().toString().trim();
         
-        // Create issuer and customer
-        Issuer issuer = new Issuer(issuerName, issuerId);
-        Customer customer = new Customer(customerName, customerId);
+        // Create issuer and customer with tel (required by API)
+        // Use default tel if not provided - should be added to UI later
+        String issuerTel = "+237123456789";
+        String customerTel = "+237123456789";
+        Issuer issuer = new Issuer(issuerName, issuerId, issuerTel);
+        Customer customer = new Customer(customerName, customerId, customerTel);
         
         // Create sample invoice lines (for now, we'll use test data)
         List<InvoiceLine> invoiceLines = new ArrayList<>();
         invoiceLines.add(new InvoiceLine("Article1", 5, 10000, 5));
         invoiceLines.add(new InvoiceLine("Article2", 2, 3500, 20));
+        
+        // Format date as ISO 8601 with 3-digit milliseconds and Z timezone
+        // Expected format: 2025-10-19T15:44:52.922Z
+        String issueDate = Instant.now().atOffset(ZoneOffset.UTC)
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"));
         
         // Create invoice data
         InvoiceData invoiceData = new InvoiceData(
@@ -181,7 +195,7 @@ public class InvoiceFragment extends BaseFragment<FragmentInvoiceBinding, Invoic
             0, // totalHt - will be calculated
             0, // totalVat - will be calculated
             0, // totalTtc - will be calculated
-            LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + ".212Z"
+            issueDate
         );
         
         // Calculate totals
@@ -191,21 +205,39 @@ public class InvoiceFragment extends BaseFragment<FragmentInvoiceBinding, Invoic
     }
 
     private void addSampleItem() {
+        // Préserver la valeur saisie d'externalNum
+        String currentExternal = binding.etExternalNum.getText() != null ? binding.etExternalNum.getText().toString().trim() : "";
+
         // For now, just use test data
         InvoiceData testInvoice = InvoiceTestData.createTestInvoice();
         
-        // Update form fields with test data
-        binding.etExternalNum.setText(testInvoice.getExternalNum());
+        // Update form fields with test data (sans écraser externalNum saisi)
         binding.etMachineNum.setText(testInvoice.getMachineNum());
         binding.etIssuerName.setText(testInvoice.getIssuer().getName());
         binding.etIssuerId.setText(testInvoice.getIssuer().getIdentityNumber());
         binding.etCustomerName.setText(testInvoice.getCustomer().getName());
         binding.etCustomerId.setText(testInvoice.getCustomer().getIdentityNumber());
+
+        // Restaurer externalNum si l'utilisateur l'a saisi, sinon générer un nouveau aléatoire
+        if (currentExternal != null && !currentExternal.isEmpty()) {
+            binding.etExternalNum.setText(currentExternal);
+        } else {
+            binding.etExternalNum.setText(generateExternalNum());
+        }
         
         // Update total display
         binding.tvTotal.setText(String.format("%.2f FCFA", testInvoice.getTotalTtc() / 100.0));
         
         Toast.makeText(getContext(), "Sample data loaded", Toast.LENGTH_SHORT).show();
+    }
+
+    private String generateExternalNum() {
+        // Format: FCT-YYYYMMDD-HHMMSS-XXX (XXX = suffixe aléatoire)
+        java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+        String ts = java.time.LocalDateTime.now(java.time.ZoneId.of("UTC")).format(fmt);
+        int rand = (int)(Math.random() * 1000);
+        String suffix = String.format("%03d", rand);
+        return "FCT-" + ts + "-" + suffix;
     }
 
     @Override

@@ -5,7 +5,8 @@ import com.dspread.pos.models.InvoiceLine;
 import com.dspread.pos.models.Issuer;
 import com.dspread.pos.models.Customer;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +48,8 @@ public class InvoiceTestData {
             0, // totalHt - will be calculated
             0, // totalVat - will be calculated
             0, // totalTtc - will be calculated
-            LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + ".212Z" // issueDate
+            Instant.now().atOffset(ZoneOffset.UTC)
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")) // issueDate
         );
         
         // Calculate totals
@@ -83,7 +85,8 @@ public class InvoiceTestData {
             0, // totalHt - will be calculated
             0, // totalVat - will be calculated
             0, // totalTtc - will be calculated
-            LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + ".000Z"
+            Instant.now().atOffset(ZoneOffset.UTC)
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
         );
         
         // Calculate totals
