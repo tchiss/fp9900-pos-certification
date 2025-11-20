@@ -4,6 +4,9 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
+import com.dspread.pos.db.AppDatabase;
+import com.dspread.pos.db.InvoiceDao;
+import com.dspread.pos.db.InvoiceEntity;
 import com.dspread.pos.models.InvoiceData;
 import com.dspread.pos.models.CertificationResponse;
 import com.dspread.pos.models.InvoiceVerificationResponse;
@@ -66,9 +69,92 @@ public class StorageManager {
         void onError(String error);
     }
 
+    // ============================================
+    // NEW METHODS: Room Database (Primary)
+    // ============================================
+
     /**
+     * Save invoice entity to Room database
+     * This is the new primary method for saving invoices
+     */
+    public void saveInvoiceEntity(InvoiceEntity entity) {
+        try {
+            AppDatabase database = AppDatabase.getInstance(context);
+            InvoiceDao invoiceDao = database.invoiceDao();
+            invoiceDao.insert(entity);
+            TRACE.i(TAG + ": Invoice entity saved to Room database (id: " + entity.id + ")");
+        } catch (Exception e) {
+            TRACE.e(TAG + ": Error saving invoice entity: " + e.getMessage());
+            throw new RuntimeException("Error saving invoice entity", e);
+        }
+    }
+
+    /**
+     * Get all pending invoice entities from Room database
+     */
+    public List<InvoiceEntity> getPendingInvoiceEntities() {
+        try {
+            AppDatabase database = AppDatabase.getInstance(context);
+            InvoiceDao invoiceDao = database.invoiceDao();
+            return invoiceDao.getPendingInvoices();
+        } catch (Exception e) {
+            TRACE.e(TAG + ": Error loading pending invoice entities: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * Get last invoice entity (for chain hash calculation)
+     */
+    public InvoiceEntity getLastInvoiceEntity() {
+        try {
+            AppDatabase database = AppDatabase.getInstance(context);
+            InvoiceDao invoiceDao = database.invoiceDao();
+            return invoiceDao.getLastInvoice();
+        } catch (Exception e) {
+            TRACE.e(TAG + ": Error loading last invoice entity: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Update invoice status in Room database
+     */
+    public void updateInvoiceStatus(String id, String status, Long certifiedAt) {
+        try {
+            AppDatabase database = AppDatabase.getInstance(context);
+            InvoiceDao invoiceDao = database.invoiceDao();
+            invoiceDao.updateStatus(id, status, certifiedAt);
+            TRACE.i(TAG + ": Invoice status updated (id: " + id + ", status: " + status + ")");
+        } catch (Exception e) {
+            TRACE.e(TAG + ": Error updating invoice status: " + e.getMessage());
+            throw new RuntimeException("Error updating invoice status", e);
+        }
+    }
+
+    /**
+     * Get count of pending invoices from Room database
+     */
+    public int getPendingInvoiceCount() {
+        try {
+            AppDatabase database = AppDatabase.getInstance(context);
+            InvoiceDao invoiceDao = database.invoiceDao();
+            return invoiceDao.countPendingInvoices();
+        } catch (Exception e) {
+            TRACE.e(TAG + ": Error counting pending invoices: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    // ============================================
+    // DEPRECATED METHODS: SharedPreferences
+    // ============================================
+
+    /**
+     * @deprecated Use saveInvoiceEntity() instead. This method is kept for backward compatibility.
      * Sauvegarde une facture en attente de synchronisation
      */
+    @Deprecated
     public void savePendingInvoice(InvoiceData invoiceData) {
         try {
             List<InvoiceData> pending = getPendingInvoices();
@@ -87,8 +173,10 @@ public class StorageManager {
     }
 
     /**
+     * @deprecated Use getPendingInvoiceEntities() instead. This method is kept for backward compatibility.
      * Récupère toutes les factures en attente
      */
+    @Deprecated
     public List<InvoiceData> getPendingInvoices() {
         try {
             String json = prefs.getString(KEY_PENDING_INVOICES, "[]");
@@ -108,8 +196,10 @@ public class StorageManager {
     }
 
     /**
+     * @deprecated This method is kept for backward compatibility.
      * Sauvegarde une facture certifiée
      */
+    @Deprecated
     public void saveCertifiedInvoice(InvoiceData invoiceData, CertificationResponse response) {
         try {
             // Créer un objet combiné pour la sauvegarde
@@ -130,8 +220,10 @@ public class StorageManager {
     }
 
     /**
+     * @deprecated This method is kept for backward compatibility.
      * Sauvegarde une facture certifiée avec InvoiceVerificationResponse
      */
+    @Deprecated
     public void saveCertifiedInvoice(InvoiceData invoiceData, InvoiceVerificationResponse response) {
         try {
             // Convert InvoiceVerificationResponse to CertificationResponse
@@ -153,8 +245,10 @@ public class StorageManager {
     }
 
     /**
+     * @deprecated This method is kept for backward compatibility.
      * Récupère toutes les factures certifiées
      */
+    @Deprecated
     public List<CertifiedInvoiceRecord> getCertifiedInvoices() {
         try {
             String json = prefs.getString(KEY_CERTIFIED_INVOICES, "[]");
@@ -174,11 +268,24 @@ public class StorageManager {
     }
 
     /**
+     * @deprecated Use InvoiceSyncWorker instead. This method is kept for backward compatibility.
      * Synchronise les factures en attente avec l'API
      */
+    @Deprecated
     public void syncPendingInvoices(SyncCallback callback) {
-        TRACE.i(TAG + ": Starting sync of pending invoices");
+        TRACE.i(TAG + ": Starting sync of pending invoices (DEPRECATED - use InvoiceSyncWorker)");
         
+        // Try to use Room database first
+        List<InvoiceEntity> pendingEntities = getPendingInvoiceEntities();
+        if (!pendingEntities.isEmpty()) {
+            TRACE.i(TAG + ": Found " + pendingEntities.size() + " pending invoice(s) in Room database");
+            // Use new sync method via ApiManager.syncInvoice()
+            // This is handled by InvoiceSyncWorker, but we can trigger it here for backward compatibility
+            callback.onSuccess(0); // Worker will handle actual sync
+            return;
+        }
+        
+        // Fallback to old SharedPreferences method
         List<InvoiceData> pending = getPendingInvoices();
         if (pending.isEmpty()) {
             callback.onSuccess(0);

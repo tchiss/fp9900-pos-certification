@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 import me.goldze.mvvmhabit.base.BaseViewModel;
 import androidx.lifecycle.MutableLiveData;
 
+import com.dspread.pos.db.InvoiceEntity;
 import com.dspread.pos.managers.ApiManager;
 import com.dspread.pos.managers.PrinterManager;
 import com.dspread.pos.managers.StorageManager;
@@ -18,7 +19,12 @@ import com.dspread.pos.models.InvoiceData;
 import com.dspread.pos.models.InvoiceLine;
 import com.dspread.pos.models.CertificationResponse;
 import com.dspread.pos.models.InvoiceVerificationResponse;
+import com.dspread.pos.security.KeyManager;
+import com.dspread.pos.utils.CanonicalJsonUtil;
 import com.dspread.pos.utils.TRACE;
+
+import java.security.MessageDigest;
+import java.util.UUID;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -208,11 +214,12 @@ public class InvoiceViewModel extends BaseViewModel {
         }
         
         try {
-            List<InvoiceData> pending = storageManager.getPendingInvoices();
+            // Use new Room database method
+            int pendingCount = storageManager.getPendingInvoiceCount();
             SyncStatus status = new SyncStatus(
-                pending.size() > 0,
-                pending.size() > 0 ? pending.size() + " invoice(s) pending" : "No pending invoices",
-                pending.size()
+                pendingCount > 0,
+                pendingCount > 0 ? pendingCount + " invoice(s) pending" : "No pending invoices",
+                pendingCount
             );
             syncStatus.postValue(status);
         } catch (Exception e) {
@@ -270,14 +277,14 @@ public class InvoiceViewModel extends BaseViewModel {
         checkConnectivity();
         Boolean onlineStatus = isOnline.getValue();
         
-        // If connectivity check fails, try anyway (API will handle network errors properly)
-        // Don't automatically save offline - let the API attempt first
+        // If offline, use new offline signing flow
         if (onlineStatus == null || !onlineStatus) {
-            TRACE.w("InvoiceViewModel: Connectivity check indicates offline, but attempting API call anyway");
-            // Continue to try API call - if it fails, error handler will save offline
+            TRACE.i("InvoiceViewModel: Offline mode detected, using offline signing flow");
+            saveInvoiceOfflineWithSignature(invoiceData);
+            return;
         }
 
-        // Submit to DGI API using complete certification flow
+        // Online mode: Submit to DGI API using complete certification flow
         apiManager.certifyInvoice(invoiceData, new ApiManager.ApiCallback<InvoiceVerificationResponse>() {
             @Override
             public void onSuccess(InvoiceVerificationResponse response) {
@@ -326,8 +333,8 @@ public class InvoiceViewModel extends BaseViewModel {
                 
                 if (isNetworkError) {
                     // Only save offline if it's actually a network error
-                    TRACE.i("InvoiceViewModel: Network error detected, saving invoice offline");
-                    saveInvoiceOffline(invoiceData);
+                    TRACE.i("InvoiceViewModel: Network error detected, saving invoice offline with signature");
+                    saveInvoiceOfflineWithSignature(invoiceData);
                     
                     // Update connectivity status
                     checkConnectivity();
@@ -346,23 +353,127 @@ public class InvoiceViewModel extends BaseViewModel {
         });
     }
 
+    /**
+     * @deprecated Use saveInvoiceOfflineWithSignature() instead
+     * Old method for backward compatibility
+     */
+    @Deprecated
     private void saveInvoiceOffline(InvoiceData invoiceData) {
+        saveInvoiceOfflineWithSignature(invoiceData);
+    }
+
+    /**
+     * Save invoice offline with DGI-compliant signature, hash, and chain
+     * This is the new method that creates signed invoice entities
+     */
+    private void saveInvoiceOfflineWithSignature(InvoiceData invoiceData) {
         if (storageManager == null) {
             errorMessage.postValue("Storage not available. Cannot save invoice offline.");
             isLoading.postValue(false);
             TRACE.e("InvoiceViewModel: StorageManager not available for offline save");
             return;
         }
-        
+
         try {
-            storageManager.savePendingInvoice(invoiceData);
-            loadPendingInvoices(); // Update status
+            // Step 1: Generate canonical JSON
+            TRACE.i("InvoiceViewModel: Generating canonical JSON");
+            String canonicalJson = CanonicalJsonUtil.toCanonicalJson(invoiceData);
+
+            // Step 2: Calculate SHA-256 hash
+            TRACE.i("InvoiceViewModel: Calculating SHA-256 hash");
+            String hash = calculateSHA256(canonicalJson);
+
+            // Step 3: Sign hash with ECDSA
+            TRACE.i("InvoiceViewModel: Signing hash with ECDSA");
+            KeyManager keyManager = KeyManager.getInstance();
+            byte[] hashBytes = hexStringToByteArray(hash);
+            String signature = keyManager.sign(hashBytes);
+
+            // Step 4: Get last invoice for chain hash and sequence number
+            InvoiceEntity lastInvoice = storageManager.getLastInvoiceEntity();
+            String prevHash = (lastInvoice != null) ? lastInvoice.hash : "GENESIS";
+            long seqNo = (lastInvoice != null) ? lastInvoice.seqNo + 1 : 1;
+
+            TRACE.i("InvoiceViewModel: Chain info - prevHash: " + prevHash + ", seqNo: " + seqNo);
+
+            // Step 5: Create InvoiceEntity
+            String id = UUID.randomUUID().toString();
+            InvoiceEntity entity = new InvoiceEntity(
+                id,
+                canonicalJson,
+                hash,
+                signature,
+                prevHash,
+                seqNo,
+                InvoiceEntity.STATUS_SIGNED_LOCAL,
+                System.currentTimeMillis()
+            );
+
+            // Step 6: Save to Room database
+            storageManager.saveInvoiceEntity(entity);
             
-            TRACE.i("InvoiceViewModel: Invoice saved offline");
+            // Update status to PENDING_DGI for sync
+            entity.setStatus(InvoiceEntity.STATUS_PENDING_DGI);
+            storageManager.updateInvoiceStatus(id, InvoiceEntity.STATUS_PENDING_DGI, null);
+
+            loadPendingInvoices(); // Update UI status
+            
+            TRACE.i("InvoiceViewModel: Invoice saved offline with signature (id: " + id + ", seqNo: " + seqNo + ")");
+            
+            // Show success message
+            CertificationResult result = new CertificationResult(
+                true,
+                "PENDING",
+                null,
+                null,
+                null,
+                null
+            );
+            certificationResult.postValue(result);
+            errorMessage.postValue("Invoice saved offline and queued for synchronization");
+
         } catch (Exception e) {
-            TRACE.e("InvoiceViewModel: Error saving invoice offline: " + e.getMessage());
-            errorMessage.postValue("Error during offline save");
+            TRACE.e("InvoiceViewModel: Error saving invoice offline with signature: " + e.getMessage());
+            errorMessage.postValue("Error during offline save: " + e.getMessage());
+            isLoading.postValue(false);
         }
+    }
+
+    /**
+     * Calculate SHA-256 hash of a string
+     */
+    private String calculateSHA256(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(input.getBytes("UTF-8"));
+            return bytesToHex(hashBytes);
+        } catch (Exception e) {
+            throw new RuntimeException("Error calculating SHA-256", e);
+        }
+    }
+
+    /**
+     * Convert byte array to hex string
+     */
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder result = new StringBuilder();
+        for (byte b : bytes) {
+            result.append(String.format("%02x", b));
+        }
+        return result.toString();
+    }
+
+    /**
+     * Convert hex string to byte array
+     */
+    private byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                    + Character.digit(s.charAt(i+1), 16));
+        }
+        return data;
     }
 
     public void printInvoice(InvoiceData invoiceData, CertificationResponse response) {
