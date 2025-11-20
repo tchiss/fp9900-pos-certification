@@ -34,6 +34,7 @@ public class InvoiceEntity {
     public InvoiceEntity() {
     }
 
+    @androidx.room.Ignore
     public InvoiceEntity(@NonNull String id, String payload, String hash, String signature,
                         String prevHash, long seqNo, String status, long createdAt) {
         this.id = id;

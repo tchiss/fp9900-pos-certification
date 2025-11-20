@@ -6,14 +6,11 @@ import androidx.annotation.NonNull;
 import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
-import androidx.room.migration.Migration;
-import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.dspread.pos.utils.TRACE;
 
-import net.zetetic.database.sqlcipher.SupportOpenHelperFactory;
+import net.sqlcipher.database.SupportFactory;
 
-import java.io.File;
 import java.security.SecureRandom;
 
 /**
@@ -53,7 +50,7 @@ public abstract class AppDatabase extends RoomDatabase {
         
         // Create SQLCipher factory
         byte[] key = databasePassword.getBytes();
-        SupportOpenHelperFactory factory = new SupportOpenHelperFactory(key);
+        SupportFactory factory = new SupportFactory(key);
         
         TRACE.i(TAG + ": Creating encrypted database: " + DATABASE_NAME);
         

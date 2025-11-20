@@ -385,7 +385,12 @@ public class InvoiceViewModel extends BaseViewModel {
 
             // Step 3: Sign hash with ECDSA
             TRACE.i("InvoiceViewModel: Signing hash with ECDSA");
-            KeyManager keyManager = KeyManager.getInstance();
+            KeyManager keyManager;
+            try {
+                keyManager = KeyManager.getInstance();
+            } catch (IllegalStateException e) {
+                throw new RuntimeException("KeyManager not initialized. Please restart the app.", e);
+            }
             byte[] hashBytes = hexStringToByteArray(hash);
             String signature = keyManager.sign(hashBytes);
 
