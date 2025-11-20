@@ -373,7 +373,7 @@ public class InvoiceViewModel extends BaseViewModel {
             TRACE.e("InvoiceViewModel: StorageManager not available for offline save");
             return;
         }
-
+        
         try {
             // Step 1: Generate canonical JSON
             TRACE.i("InvoiceViewModel: Generating canonical JSON");
@@ -401,7 +401,8 @@ public class InvoiceViewModel extends BaseViewModel {
 
             TRACE.i("InvoiceViewModel: Chain info - prevHash: " + prevHash + ", seqNo: " + seqNo);
 
-            // Step 5: Create InvoiceEntity
+            // Step 5: Create InvoiceEntity with PENDING_DGI status directly
+            // (STATUS_PENDING_DGI is used so getLastInvoice() can find it for chain calculation)
             String id = UUID.randomUUID().toString();
             InvoiceEntity entity = new InvoiceEntity(
                 id,
@@ -410,20 +411,19 @@ public class InvoiceViewModel extends BaseViewModel {
                 signature,
                 prevHash,
                 seqNo,
-                InvoiceEntity.STATUS_SIGNED_LOCAL,
+                InvoiceEntity.STATUS_PENDING_DGI,
                 System.currentTimeMillis()
             );
 
             // Step 6: Save to Room database
             storageManager.saveInvoiceEntity(entity);
-            
-            // Update status to PENDING_DGI for sync
-            entity.setStatus(InvoiceEntity.STATUS_PENDING_DGI);
-            storageManager.updateInvoiceStatus(id, InvoiceEntity.STATUS_PENDING_DGI, null);
 
             loadPendingInvoices(); // Update UI status
             
             TRACE.i("InvoiceViewModel: Invoice saved offline with signature (id: " + id + ", seqNo: " + seqNo + ")");
+            
+            // Reset loading indicator
+            isLoading.postValue(false);
             
             // Show success message
             CertificationResult result = new CertificationResult(

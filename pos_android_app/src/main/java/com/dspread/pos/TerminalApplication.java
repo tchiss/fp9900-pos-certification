@@ -218,8 +218,11 @@ public class TerminalApplication extends BaseApplication {
                     .setConstraints(constraints)
                     .build();
 
-            // Enqueue the work
-            WorkManager.getInstance(TerminalApplication.this).enqueue(syncWorkRequest);
+            // Enqueue unique periodic work to prevent duplicates
+            WorkManager.getInstance(TerminalApplication.this).enqueueUniquePeriodicWork(
+                    "invoice_sync_worker",
+                    androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                    syncWorkRequest);
             
             TRACE.i("TerminalApplication: InvoiceSyncWorker scheduled (every 15 minutes)");
         } catch (Exception e) {

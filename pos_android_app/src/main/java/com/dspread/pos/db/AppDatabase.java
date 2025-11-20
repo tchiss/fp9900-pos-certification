@@ -56,6 +56,7 @@ public abstract class AppDatabase extends RoomDatabase {
         
         return Room.databaseBuilder(appContext, AppDatabase.class, DATABASE_NAME)
                 .openHelperFactory(factory)
+                .allowMainThreadQueries() // Allow main thread queries for synchronous operations
                 .build();
     }
 
