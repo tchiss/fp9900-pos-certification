@@ -9,10 +9,22 @@ import com.dspread.pos.posAPI.POSManager;
 import com.dspread.pos.ui.main.MainActivity;
 import com.dspread.pos.utils.DevUtils;
 import com.dspread.pos.utils.TRACE;
+import com.dspread.pos.db.AppDatabase;
 import com.dspread.pos.managers.ApiManager;
 import com.dspread.pos.managers.PrinterManager;
 import com.dspread.pos.managers.StorageManager;
+import com.dspread.pos.security.KeyManager;
+import com.dspread.pos.sync.InvoiceSyncWorker;
+import com.dspread.pos.utils.DeviceIdManager;
+import com.dspread.pos.utils.MigrationHelper;
 import com.dspread.pos_android_app.BuildConfig;
+
+import androidx.work.Constraints;
+import androidx.work.NetworkType;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
+
+import java.util.concurrent.TimeUnit;
 import com.dspread.pos_android_app.R;
 import com.tencent.bugly.crashreport.BuglyLog;
 import com.tencent.bugly.crashreport.CrashReport;
@@ -43,6 +55,30 @@ public class TerminalApplication extends BaseApplication {
             // ApiManager now uses singleton pattern with context
             TRACE.i("ApiManager will be initialized on first use");
             
+            // Initialize DeviceIdManager (needed for sync)
+            DeviceIdManager.initialize(TerminalApplication.this);
+            TRACE.i("DeviceIdManager initialized successfully");
+            
+            // Initialize KeyManager for ECDSA signing
+            KeyManager.initialize(TerminalApplication.this);
+            TRACE.i("KeyManager initialized successfully");
+            
+            // Initialize AppDatabase with SQLCipher
+            AppDatabase.getInstance(TerminalApplication.this);
+            TRACE.i("AppDatabase initialized successfully");
+            
+            // Run migration from SharedPreferences to Room (if needed)
+            new Thread(() -> {
+                try {
+                    int migratedCount = MigrationHelper.migrateSharedPreferencesToRoom(TerminalApplication.this);
+                    if (migratedCount > 0) {
+                        TRACE.i("TerminalApplication: Migrated " + migratedCount + " invoice(s) from SharedPreferences to Room");
+                    }
+                } catch (Exception e) {
+                    TRACE.e("TerminalApplication: Error during migration: " + e.getMessage());
+                }
+            }).start();
+            
             StorageManager.initialize(TerminalApplication.this);
             TRACE.i("StorageManager initialized successfully");
             
@@ -53,6 +89,10 @@ public class TerminalApplication extends BaseApplication {
             // Initialize PrinterManager
             PrinterManager.initialize(TerminalApplication.this);
             TRACE.i("PrinterManager initialized successfully");
+            
+            // Initialize WorkManager for periodic sync
+            initializeWorkManager();
+            TRACE.i("WorkManager initialized successfully");
             
             // Verify that instances are accessible
             ApiManager apiManager = ApiManager.getInstance(TerminalApplication.this);
@@ -157,6 +197,36 @@ public class TerminalApplication extends BaseApplication {
             
         } catch (Exception e) {
             TRACE.e("Error initializing managers: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Initialize WorkManager for periodic invoice synchronization
+     */
+    private void initializeWorkManager() {
+        try {
+            // Create constraints: require network connection
+            Constraints constraints = new Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build();
+
+            // Create periodic work request (every 15-30 minutes)
+            PeriodicWorkRequest syncWorkRequest = new PeriodicWorkRequest.Builder(
+                    InvoiceSyncWorker.class,
+                    15, // Repeat interval
+                    TimeUnit.MINUTES)
+                    .setConstraints(constraints)
+                    .build();
+
+            // Enqueue unique periodic work to prevent duplicates
+            WorkManager.getInstance(TerminalApplication.this).enqueueUniquePeriodicWork(
+                    "invoice_sync_worker",
+                    androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                    syncWorkRequest);
+            
+            TRACE.i("TerminalApplication: InvoiceSyncWorker scheduled (every 15 minutes)");
+        } catch (Exception e) {
+            TRACE.e("TerminalApplication: Error initializing WorkManager: " + e.getMessage());
         }
     }
 }
