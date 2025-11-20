@@ -266,58 +266,83 @@ public class PrinterManager {
             // Construire le contenu de la facture
             StringBuilder invoiceContent = new StringBuilder();
             
-            // En-tête
-            invoiceContent.append("════════════════════════\n");
-            invoiceContent.append("      FACTURE\n");
-            invoiceContent.append("════════════════════════\n\n");
+            // En-tête - Facture N°XXX
+            String invoiceNumber = invoiceData.getExternalNum() != null ? invoiceData.getExternalNum() : "N/A";
+            invoiceContent.append("═══════════\n");
+            invoiceContent.append("Facture N°").append(invoiceNumber).append("\n");
+            invoiceContent.append("═══════════\n");
+            
+            // Num Ext si disponible
+            if (invoiceData.getExternalNum() != null && !invoiceData.getExternalNum().trim().isEmpty()) {
+                invoiceContent.append("Num Ext: ").append(invoiceData.getExternalNum()).append("\n");
+            }
+            
+            // Date et heure de la facture (format: Le 05/11/2025 08:43:37)
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            java.time.format.DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+            invoiceContent.append("Le ").append(now.format(dateFormatter)).append("\n\n");
             
             // Informations émetteur
             if (invoiceData.getIssuer() != null) {
                 invoiceContent.append("Emetteur: ").append(invoiceData.getIssuer().getName()).append("\n");
+                String issuerTel = invoiceData.getIssuer().getTel() != null ? invoiceData.getIssuer().getTel() : "";
+                invoiceContent.append("Tel: ").append(issuerTel);
+                // Email non disponible dans le modèle actuel, on peut l'ajouter plus tard si nécessaire
+                invoiceContent.append(" / Email: -\n");
                 invoiceContent.append("N°: ").append(invoiceData.getIssuer().getIdentityNumber()).append("\n\n");
             }
             
             // Informations client
             if (invoiceData.getCustomer() != null) {
                 invoiceContent.append("Client: ").append(invoiceData.getCustomer().getName()).append("\n");
+                String customerTel = invoiceData.getCustomer().getTel() != null ? invoiceData.getCustomer().getTel() : "";
+                invoiceContent.append("Tel: ").append(customerTel);
+                // Email non disponible dans le modèle actuel, on peut l'ajouter plus tard si nécessaire
+                invoiceContent.append(" / Email: -\n");
                 invoiceContent.append("N°: ").append(invoiceData.getCustomer().getIdentityNumber()).append("\n\n");
             }
             
             // Articles
-            invoiceContent.append("────────────────────────\n");
+            invoiceContent.append("───────────\n");
             invoiceContent.append("ARTICLES\n");
-            invoiceContent.append("────────────────────────\n");
+            invoiceContent.append("───────────\n");
             
             if (invoiceData.getInvoiceLines() != null) {
                 for (InvoiceLine line : invoiceData.getInvoiceLines()) {
                     invoiceContent.append(line.getDesignation()).append("\n");
-                    invoiceContent.append(String.format("Qty: %d × %.2f = %.2f FCFA\n",
+                    // Format: Qté: A PHT: B TVA: C
+                    double unitPriceHt = line.getUnitPrice() / 100.0;
+                    double vatAmount = line.getVatAmount() / 100.0;
+                    invoiceContent.append(String.format("Qté: %d PHT: %.2f TVA: %.2f\n",
                         line.getQuantity(),
-                        line.getUnitPrice() / 100.0,
-                        line.getTotalWithVat() / 100.0));
+                        unitPriceHt,
+                        vatAmount));
                 }
             }
             
             // Total
-            invoiceContent.append("\n────────────────────────\n");
+            invoiceContent.append("\n───────────\n");
             invoiceContent.append(String.format("TOTAL: %.2f FCFA\n", invoiceData.getTotalTtc() / 100.0));
-            invoiceContent.append("────────────────────────\n\n");
+            invoiceContent.append("───────────\n\n");
             
-            // Certification DGI (sans le code MECEF, il sera imprimé après le QR code)
+            // Certification DGI
             if (response != null && (response.isCertified() || "FISCALIZED".equals(response.getStatus()))) {
-                invoiceContent.append("CERTIFICATION DGI\n\n");
+                invoiceContent.append("CERTIFICATION DGI\n");
+                
+                // Date et heure
+                invoiceContent.append("Le ").append(now.format(dateFormatter)).append("\n");
+                
+                // Code (token) - utiliser le token de la réponse ou le mecefCode
+                String token = response.getMecefCode(); // Le token est dans mecefCode
+                if (token != null && !token.trim().isEmpty()) {
+                    invoiceContent.append("Code: ").append(token);
+                }
             }
-            
-            // Date et heure
-            java.time.LocalDateTime now = java.time.LocalDateTime.now();
-            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            invoiceContent.append("Date: ").append(now.format(formatter)).append("\n");
-            invoiceContent.append("════════════════════════\n\n");
             
             // Imprimer le texte
             printerHelper.printText("CENTER", "NORMAL", "14", invoiceContent.toString());
             
-            // Imprimer QR Code si disponible
+            // Imprimer QR Code si disponible (avec espace minimal avant)
             // qrData peut être soit une image base64, soit du texte à encoder
             String qrData = null;
             if (response != null) {
@@ -361,19 +386,9 @@ public class PrinterManager {
                 TRACE.w(TAG + ": No QR code data available for printing");
             }
             
-            // Imprimer le code MECEF après le QR code
-            if (response != null && response.getMecefCode() != null && !response.getMecefCode().trim().isEmpty()) {
-                try {
-                    printerHelper.printText("CENTER", "NORMAL", "14", "\nCode MECEF: " + response.getMecefCode() + "\n");
-                    TRACE.i(TAG + ": MECEF code printed: " + response.getMecefCode());
-                } catch (Exception e) {
-                    TRACE.w(TAG + ": Could not print MECEF code: " + e.getMessage());
-                }
-            }
-            
-            // Ajouter du padding en bas (espace blanc)
+            // Ajouter un tout petit padding en bas du QR code
             try {
-                printerHelper.printText("CENTER", "NORMAL", "14", "\n\n\n");
+                printerHelper.printText("CENTER", "NORMAL", "14", "\n");
             } catch (Exception e) {
                 TRACE.w(TAG + ": Could not add bottom padding: " + e.getMessage());
             }

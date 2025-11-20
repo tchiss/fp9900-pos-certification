@@ -135,6 +135,8 @@ public class InvoiceFragment extends BaseFragment<FragmentInvoiceBinding, Invoic
     private void handlePrintResult(InvoiceViewModel.PrintResult result) {
         if (result.isSuccess()) {
             Toast.makeText(getContext(), "Print successful!", Toast.LENGTH_SHORT).show();
+            // Régénérer un nouveau externalNum après impression réussie
+            binding.etExternalNum.setText(generateExternalNum());
         } else {
             Toast.makeText(getContext(), "Print error: " + result.getErrorMessage(), Toast.LENGTH_LONG).show();
         }
