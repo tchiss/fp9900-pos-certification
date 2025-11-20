@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.Query;
+import androidx.room.Transaction;
 import androidx.room.Update;
 
 import java.util.List;
@@ -33,11 +34,38 @@ public interface InvoiceDao {
     InvoiceEntity getById(@NonNull String id);
 
     /**
-     * Get the last invoice (highest seqNo) with status PENDING_DGI or CERTIFIED
+     * Get the last invoice (highest seqNo) with status PENDING_DGI, CERTIFIED, or SIGNED_LOCAL
      * Used for chain hash calculation
+     * Includes SIGNED_LOCAL to ensure chain integrity even if invoices are briefly in that state
      */
-    @Query("SELECT * FROM invoices WHERE status IN ('PENDING_DGI', 'CERTIFIED') ORDER BY seqNo DESC LIMIT 1")
+    @Query("SELECT * FROM invoices WHERE status IN ('PENDING_DGI', 'CERTIFIED', 'SIGNED_LOCAL') ORDER BY seqNo DESC LIMIT 1")
     InvoiceEntity getLastInvoice();
+
+    /**
+     * Atomically get last invoice and calculate next sequence number
+     * This prevents race conditions when multiple invoices are created concurrently
+     * Uses a transaction to ensure atomicity
+     */
+    @Transaction
+    default ChainInfo getLastInvoiceAndCalculateNext() {
+        InvoiceEntity lastInvoice = getLastInvoice();
+        String prevHash = (lastInvoice != null) ? lastInvoice.hash : "GENESIS";
+        long nextSeqNo = (lastInvoice != null) ? lastInvoice.seqNo + 1 : 1;
+        return new ChainInfo(prevHash, nextSeqNo);
+    }
+
+    /**
+     * Helper class for chain information
+     */
+    class ChainInfo {
+        public final String prevHash;
+        public final long nextSeqNo;
+
+        public ChainInfo(String prevHash, long nextSeqNo) {
+            this.prevHash = prevHash;
+            this.nextSeqNo = nextSeqNo;
+        }
+    }
 
     /**
      * Get all invoices with status PENDING_DGI

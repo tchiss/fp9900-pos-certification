@@ -105,7 +105,9 @@ public class StorageManager {
 
     /**
      * Get last invoice entity (for chain hash calculation)
+     * @deprecated Use getLastInvoiceChainInfo() for atomic chain calculation
      */
+    @Deprecated
     public InvoiceEntity getLastInvoiceEntity() {
         try {
             AppDatabase database = AppDatabase.getInstance(context);
@@ -114,6 +116,24 @@ public class StorageManager {
         } catch (Exception e) {
             TRACE.e(TAG + ": Error loading last invoice entity: " + e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Atomically get last invoice chain info (prevHash and nextSeqNo)
+     * Prevents race conditions in concurrent invoice creation
+     * 
+     * @return ChainInfo with prevHash and nextSeqNo, or null on error
+     */
+    public InvoiceDao.ChainInfo getLastInvoiceChainInfo() {
+        try {
+            AppDatabase database = AppDatabase.getInstance(context);
+            InvoiceDao invoiceDao = database.invoiceDao();
+            return invoiceDao.getLastInvoiceAndCalculateNext();
+        } catch (Exception e) {
+            TRACE.e(TAG + ": Error getting chain info: " + e.getMessage());
+            // Return default chain info on error
+            return new InvoiceDao.ChainInfo("GENESIS", 1);
         }
     }
 

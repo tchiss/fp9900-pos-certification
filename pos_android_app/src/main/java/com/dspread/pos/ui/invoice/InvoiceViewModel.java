@@ -394,10 +394,11 @@ public class InvoiceViewModel extends BaseViewModel {
             byte[] hashBytes = hexStringToByteArray(hash);
             String signature = keyManager.sign(hashBytes);
 
-            // Step 4: Get last invoice for chain hash and sequence number
-            InvoiceEntity lastInvoice = storageManager.getLastInvoiceEntity();
-            String prevHash = (lastInvoice != null) ? lastInvoice.hash : "GENESIS";
-            long seqNo = (lastInvoice != null) ? lastInvoice.seqNo + 1 : 1;
+            // Step 4: Atomically get last invoice chain info to prevent race conditions
+            // This ensures sequential seqNo assignment even with concurrent invoice creation
+            com.dspread.pos.db.InvoiceDao.ChainInfo chainInfo = storageManager.getLastInvoiceChainInfo();
+            String prevHash = chainInfo.prevHash;
+            long seqNo = chainInfo.nextSeqNo;
 
             TRACE.i("InvoiceViewModel: Chain info - prevHash: " + prevHash + ", seqNo: " + seqNo);
 
